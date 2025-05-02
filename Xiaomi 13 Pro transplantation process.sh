@@ -21,30 +21,6 @@ for file in "${files[@]}"; do
     sudo chmod 777 "$file"
 done
 
-# 解压官方包的 ZIP 文件
-#!/bin/bash
-
-# 更改时区为 Asia/Shanghai
-echo "更改时区为 Asia/Shanghai..."
-sudo timedatectl set-timezone Asia/Shanghai
-
-# 要更改权限的文件列表
-echo "为自动构建需要运行的binary设置权限..."
-files=(
-    "./tools/binary/zstd"
-    "./tools/binary/payload-dumper-go"
-    "./tools/binary/extract.erofs"
-    "./tools/binary/vbmeta-disable-verification"
-    "./tools/binary/mkfs.erofs"
-    "./tools/binary/lpmake"
-    "./tools/binary/imgextractorLinux"
-)
-
-# 循环更改每个文件的权限
-for file in "${files[@]}"; do
-    sudo chmod 777 "$file"
-done
-
 # 解压指定的 ZIP 文件
 STOCK_ZIP_FILE="./downloads/nuwa-ota_full-OS2.0.107.0.VMBCNXM-user-15.0-ae21c2ef9d.zip"
 STOCK_PAYLOAD_DIR="./Stock Package/payload.bin"
@@ -83,7 +59,7 @@ done
 echo "所有镜像文件已提取完成！"
 
 # 解压移植包的 ZIP 文件
-MIGRATION_ZIP_FILE="./downloads/haotian-ota_full-OS2.0.200.14.VOBCNXM-user-15.0-b23bce945a.zip"
+MIGRATION_ZIP_FILE="./downloads/xuanyuan-ota_full-OS2.0.200.22.VOACNXM-user-15.0-3ebc2a7940.zip"
 MIGRATION_PAYLOAD_DIR="./Migration Package/payload.bin"
 MIGRATION_EXTRACT_DIR="./Migration Package"
 
@@ -180,7 +156,7 @@ sed -i 's/<integer name="support_widevine_l1">1<\/integer>/<integer name="suppor
 # 修复自带相机
 echo "修复自带相机闪退"
 rm -rf "$MIGRATION_EXTRACT_DIR/product/priv-app/MiuiCamera/"
-cp -rf ./device_files/xiaomi_sm8550_files/MiuiCamera/ "$MIGRATION_EXTRACT_DIR/product/priv-app/MiuiCamera/"
+7z x ./device_files/xiaomi_sm8550_files/MiuiCamera.7z -o"$MIGRATION_EXTRACT_DIR/product/priv-app/MiuiCamera"
 
 # 替换MiuiCit
 echo "替换MiuiCit"
@@ -205,11 +181,13 @@ cp -rf "$STOCK_EXTRACT_DIR/product/app/MiAONService/" "$MIGRATION_EXTRACT_DIR/pr
 # 恢复官方壁纸
 echo "恢复官方壁纸"
 rm "$MIGRATION_EXTRACT_DIR"/product/media/wallpaper/wallpaper_BG.jpg \
-   "$MIGRATION_EXTRACT_DIR"/product/media/wallpaper/wallpaper_GY.jpg \
-   "$MIGRATION_EXTRACT_DIR"/product/media/wallpaper/wallpaper_SW.jpg \
+   "$MIGRATION_EXTRACT_DIR"/product/media/wallpaper/wallpaper_BK.jpg \
+   "$MIGRATION_EXTRACT_DIR"/product/media/wallpaper/wallpaper_BN.jpg \
+   "$MIGRATION_EXTRACT_DIR"/product/media/wallpaper/wallpaper_PK.jpg \
+   "$MIGRATION_EXTRACT_DIR"/product/media/wallpaper/wallpaper_PU.jpg \
+   "$MIGRATION_EXTRACT_DIR"/product/media/wallpaper/wallpaper_WG.jpg \
    "$MIGRATION_EXTRACT_DIR"/product/media/wallpaper/wallpaper_WH.jpg \
-   "$MIGRATION_EXTRACT_DIR"/product/media/wallpaper/wallpaper00.jpg \
-   "$MIGRATION_EXTRACT_DIR"/product/media/wallpaper/wallpaper01.jpg
+   "$MIGRATION_EXTRACT_DIR"/product/media/wallpaper/wallpaper_YB.jpg 
 
 cp -f "$STOCK_EXTRACT_DIR"/product/media/wallpaper/wallpaper13.jpg "$MIGRATION_EXTRACT_DIR"/product/media/wallpaper
 cp -f "$STOCK_EXTRACT_DIR"/product/media/wallpaper/wallpaper13.jpg "$MIGRATION_EXTRACT_DIR"/product/media/theme/default/lock_wallpaper
@@ -240,15 +218,21 @@ sed -i '/<bool name="config_sunlight_mode_available">true<\/bool>/a \
     <!-- default rhythmic eyecare mode --> \
     <integer name="default_eyecare_mode">2</integer>' "$MIGRATION_EXTRACT_DIR/product/etc/device_features/nuwa.xml"
 
-# 解锁狂暴引擎开关
+# 解锁狂暴引擎开关 By ZnCl2
 echo "解锁狂暴引擎开关"
 sed -i '/<!-- BSP BEGIN -->/a \
     <!-- Whether support WildBoost --> \
-    <bool name="support_wild_boost">true</bool>' "$MIGRATION_EXTRACT_DIR/product/etc/device_features/nuwa.xml"
+    <bool name="support_wild_boost">true</bool> \
+    <!-- Whether support WildBoost in Battery&Performance --> \
+    <bool name="support_wild_boost_bat_perf">true</bool>' "$MIGRATION_EXTRACT_DIR/product/etc/device_features/nuwa.xml"
 
 # 解锁控制中心透明效果
 echo "解锁控制中心透明效果"
 cp -f ./device_files/xiaomi_sm8550_files/EastXiaomiSystemUIOverlay.apk "$MIGRATION_EXTRACT_DIR"/product/overlay
+
+# 禁用无效的卫星通信入口
+echo "禁用无效的卫星通信入口"
+cp -f ./device_files/xiaomi_sm8550_files/EastRemoveSatelliteOverlay.apk "$MIGRATION_EXTRACT_DIR"/product/overlay
 
 # 解锁高级材质
 echo "解锁高级材质"
@@ -435,21 +419,23 @@ sudo sed -i 's/ro.product.build.date.utc=.*/ro.product.build.date.utc='"$build_u
 sudo sed -i 's/ro.odm.build.date=.*/ro.odm.build.date='"$build_time"'/' "$STOCK_EXTRACT_DIR"/odm/etc/build.prop
 sudo sed -i 's/ro.odm.build.date.utc=.*/ro.odm.build.date.utc='"$build_utc"'/' "$STOCK_EXTRACT_DIR"/odm/etc/build.prop
 
-# 版本号对齐
-sed -i 's/ro.mi.os.version.incremental=[^*]*/ro.mi.os.version.incremental=OS2.0.200.14.VMBCNXM/' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
+
+# 自定义版本号
+echo "自定义版本号"
+sed -i 's/ro.mi.os.version.incremental=[^*]*/ro.mi.os.version.incremental=OS2.0.200.22.VMBCNXM/' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
 sed -i 's/ro.product.mod_device=[^*]*/ro.product.mod_device=nuwa/' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
-sed -i 's/haotian/nuwa/g' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
-sed -i 's/OS2.0.200.14.VOBCNXM/OS2.0.200.14.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
-sed -i 's/OS2.0.200.14.VOBCNXM/OS2.0.200.14.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
-sed -i 's/OS2.0.200.14.VOBCNXM/OS2.0.200.14.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/system/system/build.prop
-sed -i 's/OS2.0.200.14.VOBCNXM/OS2.0.200.14.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/system_ext/etc/build.prop
-sed -i 's/OS2.0.107.0.VMBCNXM/OS2.0.200.14.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/system_dlkm/etc/build.prop
-sed -i 's/OS2.0.107.0.VMBCNXM/OS2.0.200.14.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/vendor_dlkm/etc/build.prop
-sed -i 's/OS2.0.107.0.VMBCNXM/OS2.0.200.14.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/vendor/build.prop
-sed -i 's/OS2.0.107.0.VMBCNXM/OS2.0.200.14.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/odm/etc/build.prop
+sed -i 's/xuanyuan/nuwa/g' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
+sed -i 's/OS2.0.200.22.VOACNXM/OS2.0.200.22.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
+sed -i 's/OS2.0.200.22.VOACNXM/OS2.0.200.22.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
+sed -i 's/OS2.0.200.22.VOACNXM/OS2.0.200.22.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/system/system/build.prop
+sed -i 's/OS2.0.200.22.VOACNXM/OS2.0.200.22.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/system_ext/etc/build.prop
+sed -i 's/OS2.0.107.0.VMBCNXM/OS2.0.200.22.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/system_dlkm/etc/build.prop
+sed -i 's/OS2.0.107.0.VMBCNXM/OS2.0.200.22.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/vendor_dlkm/etc/build.prop
+sed -i 's/OS2.0.107.0.VMBCNXM/OS2.0.200.22.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/vendor/build.prop
+sed -i 's/OS2.0.107.0.VMBCNXM/OS2.0.200.22.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/odm/etc/build.prop
 
 # 解压刷机脚本
-unzip -o -q ./tools/flashscript/flashtools-nuwa.zip -d ./output
+unzip -o -q ./tools/flashscript/flashtools.zip -d ./output
 mv "$STOCK_EXTRACT_DIR"/firmware ./output
 cp -f ./device_files/common_files/cust.img ./output/firmware
 
@@ -514,7 +500,7 @@ system_dlkm_size=$(stat --format="%s" "$STOCK_EXTRACT_DIR"/system_dlkm.img)
 ./tools/binary/zstd -9 -f ./output/super.img -o ./output/super.zst --rm
 
 # 打包zip文件
-7z a ./zip/nuwa-ota_full-OS2.0.200.14.VMBCNXM-user-15.0.zip ./output/*
-MD5_HASH=$(md5sum "./zip/nuwa-ota_full-OS2.0.200.14.VMBCNXM-user-15.0.zip" | awk '{ print $1 }' | cut -c 1-10)
-mv "./zip/nuwa-ota_full-OS2.0.200.14.VMBCNXM-user-15.0.zip" "./zip/nuwa-ota_full-OS2.0.200.14.VMBCNXM-user-15.0-$MD5_HASH.zip"
+7z a ./zip/nuwa-ota_full-OS2.0.200.22.VMBCNXM-user-15.0.zip ./output/*
+MD5_HASH=$(md5sum "./zip/nuwa-ota_full-OS2.0.200.22.VMBCNXM-user-15.0.zip" | awk '{ print $1 }' | cut -c 1-10)
+mv "./zip/nuwa-ota_full-OS2.0.200.22.VMBCNXM-user-15.0.zip" "./zip/nuwa-ota_full-OS2.0.200.22.VMBCNXM-user-15.0-$MD5_HASH.zip"
 
