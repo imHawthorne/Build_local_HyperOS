@@ -59,7 +59,7 @@ done
 echo "所有镜像文件已提取完成！"
 
 # 解压移植包的 ZIP 文件
-MIGRATION_ZIP_FILE="./downloads/xuanyuan-ota_full-OS2.0.200.22.VOACNXM-user-15.0-3ebc2a7940.zip"
+MIGRATION_ZIP_FILE="./downloads/xuanyuan-ota_full-OS2.0.200.25.VOACNXM-user-15.0-fadf4f61fa.zip"
 MIGRATION_PAYLOAD_DIR="./Migration Package/payload.bin"
 MIGRATION_EXTRACT_DIR="./Migration Package"
 
@@ -422,21 +422,21 @@ sudo sed -i 's/ro.odm.build.date.utc=.*/ro.odm.build.date.utc='"$build_utc"'/' "
 
 # 自定义版本号
 echo "自定义版本号"
-sed -i 's/ro.mi.os.version.incremental=[^*]*/ro.mi.os.version.incremental=OS2.0.200.22.VMBCNXM/' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
+sed -i 's/ro.mi.os.version.incremental=[^*]*/ro.mi.os.version.incremental=OS2.0.200.25.VMBCNXM/' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
 sed -i 's/ro.product.mod_device=[^*]*/ro.product.mod_device=nuwa/' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
 sed -i 's/xuanyuan/nuwa/g' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
-sed -i 's/OS2.0.200.22.VOACNXM/OS2.0.200.22.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
-sed -i 's/OS2.0.200.22.VOACNXM/OS2.0.200.22.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
-sed -i 's/OS2.0.200.22.VOACNXM/OS2.0.200.22.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/system/system/build.prop
-sed -i 's/OS2.0.200.22.VOACNXM/OS2.0.200.22.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/system_ext/etc/build.prop
-sed -i 's/OS2.0.107.0.VMBCNXM/OS2.0.200.22.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/system_dlkm/etc/build.prop
-sed -i 's/OS2.0.107.0.VMBCNXM/OS2.0.200.22.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/vendor_dlkm/etc/build.prop
-sed -i 's/OS2.0.107.0.VMBCNXM/OS2.0.200.22.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/vendor/build.prop
-sed -i 's/OS2.0.107.0.VMBCNXM/OS2.0.200.22.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/odm/etc/build.prop
+sed -i 's/OS2.0.200.25.VOACNXM/OS2.0.200.25.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
+sed -i 's/OS2.0.200.25.VOACNXM/OS2.0.200.25.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
+sed -i 's/OS2.0.200.25.VOACNXM/OS2.0.200.25.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/system/system/build.prop
+sed -i 's/OS2.0.200.25.VOACNXM/OS2.0.200.25.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/system_ext/etc/build.prop
+sed -i 's/OS2.0.107.0.VMBCNXM/OS2.0.200.25.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/system_dlkm/etc/build.prop
+sed -i 's/OS2.0.107.0.VMBCNXM/OS2.0.200.25.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/vendor_dlkm/etc/build.prop
+sed -i 's/OS2.0.107.0.VMBCNXM/OS2.0.200.25.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/vendor/build.prop
+sed -i 's/OS2.0.107.0.VMBCNXM/OS2.0.200.25.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/odm/etc/build.prop
 
 # 解压刷机脚本
 unzip -o -q ./tools/flashscript/flashtools.zip -d ./output
-mv "$STOCK_EXTRACT_DIR"/firmware ./output
+mv "$STOCK_EXTRACT_DIR"/firmware ./output/firmware
 cp -f ./device_files/common_files/cust.img ./output/firmware
 
 # 修补添加文件的上下文
@@ -500,7 +500,7 @@ system_dlkm_size=$(stat --format="%s" "$STOCK_EXTRACT_DIR"/system_dlkm.img)
 ./tools/binary/zstd -9 -f ./output/super.img -o ./output/super.zst --rm
 
 # 打包zip文件
-7z a ./zip/nuwa-ota_full-OS2.0.200.22.VMBCNXM-user-15.0.zip ./output/*
-MD5_HASH=$(md5sum "./zip/nuwa-ota_full-OS2.0.200.22.VMBCNXM-user-15.0.zip" | awk '{ print $1 }' | cut -c 1-10)
-mv "./zip/nuwa-ota_full-OS2.0.200.22.VMBCNXM-user-15.0.zip" "./zip/nuwa-ota_full-OS2.0.200.22.VMBCNXM-user-15.0-$MD5_HASH.zip"
+7z a ./zip/nuwa-ota_full-OS2.0.200.25.VMBCNXM-user-15.0.zip ./output/*
+MD5_HASH=$(md5sum "./zip/nuwa-ota_full-OS2.0.200.25.VMBCNXM-user-15.0.zip" | awk '{ print $1 }' | cut -c 1-10)
+mv "./zip/nuwa-ota_full-OS2.0.200.25.VMBCNXM-user-15.0.zip" "./zip/nuwa-ota_full-OS2.0.200.25.VMBCNXM-user-15.0-$MD5_HASH.zip"
 
