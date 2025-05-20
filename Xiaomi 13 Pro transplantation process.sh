@@ -22,7 +22,7 @@ for file in "${files[@]}"; do
 done
 
 # 解压指定的 ZIP 文件
-STOCK_ZIP_FILE="./downloads/nuwa-ota_full-OS2.0.107.0.VMBCNXM-user-15.0-ae21c2ef9d.zip"
+STOCK_ZIP_FILE="./downloads/nuwa-ota_full-OS2.0.200.7.VMBCNXM-user-15.0-36a4b9b024.zip"
 STOCK_PAYLOAD_DIR="./Stock Package/payload.bin"
 STOCK_EXTRACT_DIR="./Stock Package"
 
@@ -104,8 +104,34 @@ rm -rf "$STOCK_EXTRACT_DIR/mi_ext.img" \
 
 # 禁用 vbmeta, vbmeta_system 校验
 echo "禁用avb2.0校验"
-./tools/binary/vbmeta-disable-verification "$STOCK_EXTRACT_DIR"/vbmeta.img
-./tools/binary/vbmeta-disable-verification "$STOCK_EXTRACT_DIR"/vbmeta_system.img
+
+# 要删除的内容
+PATTERN1=",avb_keys=/avb/q-gsi.avbpubkey:/avb/r-gsi.avbpubkey:/avb/s-gsi.avbpubkey:/avb/t-gsi.avbpubkey"
+PATTERN2="avb=vbmeta_system,"
+PATTERN3="avb=vbmeta,"
+
+# 转义特殊字符
+PATTERN1=$(printf '%s\n' "$PATTERN1" | sed 's/[\/&]/\\&/g')
+PATTERN2=$(printf '%s\n' "$PATTERN2" | sed 's/[\/&]/\\&/g')
+PATTERN3=$(printf '%s\n' "$PATTERN3" | sed 's/[\/&]/\\&/g')
+
+# 修改 fstab.qcom 文件
+if [ -f "$STOCK_EXTRACT_DIR/vendor/etc/fstab.qcom" ]; then
+    echo "正在修改 $STOCK_EXTRACT_DIR/vendor/etc/fstab.qcom..."
+
+    # 使用 sed 删除指定内容
+    sed -i "s#$PATTERN1##g" "$STOCK_EXTRACT_DIR/vendor/etc/fstab.qcom"
+    sed -i "s#$PATTERN2##g" "$STOCK_EXTRACT_DIR/vendor/etc/fstab.qcom"
+    sed -i "s#$PATTERN3##g" "$STOCK_EXTRACT_DIR/vendor/etc/fstab.qcom"
+
+    echo "修改完成！"
+else
+    echo "未找到文件：$STOCK_EXTRACT_DIR/vendor/etc/fstab.qcom"
+    exit 1
+fi
+
+./tools/binary/vbmeta-disable-verification "$STOCK_EXTRACT_DIR/vbmeta.img"
+./tools/binary/vbmeta-disable-verification "$STOCK_EXTRACT_DIR/vbmeta_system.img"
 
 echo "添加mi_block的Twrp Recovery"
 
@@ -168,11 +194,6 @@ echo "小爱翻译"
 rm -rf "$MIGRATION_EXTRACT_DIR/product/app/AiasstVision/"
 cp -rf "$STOCK_EXTRACT_DIR/product/app/AiasstVision/" "$MIGRATION_EXTRACT_DIR/product/app/AiasstVision/"
 
-# 替换音质音效
-echo "音质音效"
-rm -rf "$MIGRATION_EXTRACT_DIR/product/app/MiSound/"
-cp -rf "$STOCK_EXTRACT_DIR/product/app/MiSound/" "$MIGRATION_EXTRACT_DIR/product/app/MiSound/"
-
 # 修复MiAONService
 echo "修复MiAONService"
 rm -rf "$MIGRATION_EXTRACT_DIR/product/app/MiAONServiceV/"
@@ -223,8 +244,14 @@ echo "解锁狂暴引擎开关"
 sed -i '/<!-- BSP BEGIN -->/a \
     <!-- Whether support WildBoost --> \
     <bool name="support_wild_boost">true</bool> \
-    <!-- Whether support WildBoost in Battery&Performance --> \
+    <!-- Whether support WildBoost in Battery & Performance --> \
     <bool name="support_wild_boost_bat_perf">true</bool>' "$MIGRATION_EXTRACT_DIR/product/etc/device_features/nuwa.xml"
+
+# 解锁无网通信 By ZnCl2
+echo "解锁无网通信"
+sed -i '/<!-- BSP BEGIN -->/a \
+    <!-- whether support virtual call--> \
+    <string name="support_virtual_call">nuwa</string>' "$MIGRATION_EXTRACT_DIR/product/etc/device_features/nuwa.xml"
 
 # 解锁控制中心透明效果
 echo "解锁控制中心透明效果"
@@ -251,8 +278,8 @@ cp -rf "$STOCK_EXTRACT_DIR"/product/etc/displayconfig "$MIGRATION_EXTRACT_DIR"/p
 
 # 分辨率修复
 echo "分辨率修复"
-sed -i 's/ro.sf.lcd_density=[^*]*/ro.sf.lcd_density=600/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
-sed -i 's/persist.miui.density_v2=[^*]*/persist.miui.density_v2=600/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
+sed -i 's/ro.sf.lcd_density=[^*]*/ro.sf.lcd_density=560/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
+sed -i 's/persist.miui.density_v2=[^*]*/persist.miui.density_v2=560/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
 
 # 禁用不可卸载v2 Prop
 echo "禁用不可卸载v2 Prop"
@@ -384,15 +411,15 @@ sed -i '/ro\.odm\.build\.version\.sdk=33/a ro.odm.build.media_performance_class=
 
 # 优化核心分配
 echo "优化核心分配"
-sed -i 's/ro.miui.affinity.sfui=[^*]*/ro.miui.affinity.sfui=3-7/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
-sed -i 's/ro.miui.affinity.sfre=[^*]*/ro.miui.affinity.sfre=3-7/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
-sed -i 's/persist.sys.dexpreload.other_cores=[^*]*/persist.sys.dexpreload.other_cores=0-6/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
+sed -i 's/ro.miui.affinity.sfui=[^*]*/ro.miui.affinity.sfui=0-2/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
+sed -i 's/ro.miui.affinity.sfre=[^*]*/ro.miui.affinity.sfre=0-2/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
+sed -i 's/persist.sys.dexpreload.other_cores=[^*]*/persist.sys.dexpreload.other_cores=0-2/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
 sed -i 's/persist.sys.dexpreload.cpu_cores=[^*]*/persist.sys.dexpreload.cpu_cores=0-7/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
-sed -i 's/persist.sys.dexpreload.big_prime_cores=[^*]*/persist.sys.dexpreload.big_prime_cores=7/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
+sed -i 's/persist.sys.dexpreload.big_prime_cores=[^*]*/persist.sys.dexpreload.big_prime_cores=3-6/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
 sed -i '$a \
 # East added for Xiaomi HyperOS Core allocation \
-persist.vendor.display.miui.composer_boost=4-7 \
-persist.sys.miui_animator_sched.big_prime_cores=3-7 \
+persist.vendor.display.miui.composer_boost=3-7 \
+persist.sys.miui_animator_sched.big_prime_cores=7 \
 persist.sys.miui_animator_sched.sched_threads=2 \
 persist.sys.miui_animator_sched.bigcores=3-6' "$MIGRATION_EXTRACT_DIR/product/etc/build.prop"
 
@@ -429,10 +456,10 @@ sed -i 's/OS2.0.200.25.VOACNXM/OS2.0.200.25.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/
 sed -i 's/OS2.0.200.25.VOACNXM/OS2.0.200.25.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
 sed -i 's/OS2.0.200.25.VOACNXM/OS2.0.200.25.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/system/system/build.prop
 sed -i 's/OS2.0.200.25.VOACNXM/OS2.0.200.25.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/system_ext/etc/build.prop
-sed -i 's/OS2.0.107.0.VMBCNXM/OS2.0.200.25.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/system_dlkm/etc/build.prop
-sed -i 's/OS2.0.107.0.VMBCNXM/OS2.0.200.25.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/vendor_dlkm/etc/build.prop
-sed -i 's/OS2.0.107.0.VMBCNXM/OS2.0.200.25.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/vendor/build.prop
-sed -i 's/OS2.0.107.0.VMBCNXM/OS2.0.200.25.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/odm/etc/build.prop
+sed -i 's/OS2.0.200.7.VMBCNXM/OS2.0.200.25.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/system_dlkm/etc/build.prop
+sed -i 's/OS2.0.200.7.VMBCNXM/OS2.0.200.25.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/vendor_dlkm/etc/build.prop
+sed -i 's/OS2.0.200.7.VMBCNXM/OS2.0.200.25.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/vendor/build.prop
+sed -i 's/OS2.0.200.7.VMBCNXM/OS2.0.200.25.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/odm/etc/build.prop
 
 # 解压刷机脚本
 unzip -o -q ./tools/flashscript/flashtools.zip -d ./output
