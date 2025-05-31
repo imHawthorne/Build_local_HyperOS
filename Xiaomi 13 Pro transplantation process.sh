@@ -22,7 +22,7 @@ for file in "${files[@]}"; do
 done
 
 # 解压指定的 ZIP 文件
-STOCK_ZIP_FILE="./downloads/nuwa-ota_full-OS2.0.200.7.VMBCNXM-user-15.0-36a4b9b024.zip"
+STOCK_ZIP_FILE="./downloads/nuwa-ota_full-OS2.0.200.10.VMBCNXM-user-15.0-6165f9a21b.zip"
 STOCK_PAYLOAD_DIR="./Stock Package/payload.bin"
 STOCK_EXTRACT_DIR="./Stock Package"
 
@@ -59,7 +59,7 @@ done
 echo "所有镜像文件已提取完成！"
 
 # 解压移植包的 ZIP 文件
-MIGRATION_ZIP_FILE="./downloads/xuanyuan-ota_full-OS2.0.200.25.VOACNXM-user-15.0-fadf4f61fa.zip"
+MIGRATION_ZIP_FILE="./downloads/xuanyuan-ota_full-OS2.0.205.0.VOACNXM-user-15.0-2552a0e474.zip"
 MIGRATION_PAYLOAD_DIR="./Migration Package/payload.bin"
 MIGRATION_EXTRACT_DIR="./Migration Package"
 
@@ -130,8 +130,67 @@ else
     exit 1
 fi
 
-./tools/binary/vbmeta-disable-verification "$STOCK_EXTRACT_DIR/vbmeta.img"
-./tools/binary/vbmeta-disable-verification "$STOCK_EXTRACT_DIR/vbmeta_system.img"
+# 处理vendor_boot
+mkdir vendor_boot
+cp -f "$STOCK_EXTRACT_DIR/vendor_boot.img" ./vendor_boot
+cp -f ./tools/binary/magiskboot ./vendor_boot
+cp -f ./device_files/xiaomi_sm8550_files/perfmgr.ko ./vendor_boot
+
+cd vendor_boot
+./magiskboot unpack -h ./vendor_boot.img
+comp=$(./magiskboot decompress ramdisk.cpio 2>&1 | grep -v 'raw' | sed -n 's;.*\[\(.*\)\];\1;p')
+mv -f -f ramdisk.cpio ramdisk.cpio.$comp
+./magiskboot decompress ramdisk.cpio.$comp ramdisk.cpio 2>&1
+mkdir -p ramdisk
+chmod 755 ramdisk
+cd ramdisk
+EXTRACT_UNSAFE_SYMLINKS=1 cpio -d -F ../ramdisk.cpio -i 2>&1
+
+# 去除vendor_boot的avb校验
+PATTERN1=",avb_keys=/avb/q-gsi.avbpubkey:/avb/r-gsi.avbpubkey:/avb/s-gsi.avbpubkey:/avb/t-gsi.avbpubkey"
+PATTERN2="avb=vbmeta_system,"
+PATTERN3="avb=vbmeta,"
+
+# 转义特殊字符
+PATTERN1=$(printf '%s\n' "$PATTERN1" | sed 's/[\/&]/\\&/g')
+PATTERN2=$(printf '%s\n' "$PATTERN2" | sed 's/[\/&]/\\&/g')
+PATTERN3=$(printf '%s\n' "$PATTERN3" | sed 's/[\/&]/\\&/g')
+
+# 修改 fstab.qcom 文件
+sed -i "s#$PATTERN1##g" ./first_stage_ramdisk/fstab.qcom
+sed -i "s#$PATTERN2##g" ./first_stage_ramdisk/fstab.qcom
+sed -i "s#$PATTERN3##g" ./first_stage_ramdisk/fstab.qcom
+
+cd ..
+mv -f ./perfmgr.ko ./ramdisk/lib/modules/
+
+# 插入modules.dep部分
+sed -i '/\/lib\/modules\/msm_gpi.ko:/a \/lib\/modules\/perfmgr.ko: \/lib\/modules\/qcom-dcvs.ko \/lib\/modules\/dcvs_fp.ko \/lib\/modules\/qcom_rpmh.ko \/lib\/modules\/cmd-db.ko \/lib\/modules\/qcom_ipc_logging.ko \/lib\/modules\/minidump.ko \/lib\/modules\/smem.ko \/lib\/modules\/gh_rm_drv.ko \/lib\/modules\/gh_dbl.ko \/lib\/modules\/gh_msgq.ko \/lib\/modules\/gh_arm_drv.ko' ./ramdisk/lib/modules/modules.dep
+
+# 插入modules.load.recovery部分
+sed -i '/migt\.ko/a perfmgr.ko' ./ramdisk/lib/modules/modules.load.recovery
+
+cd ./ramdisk
+find | sed 1d | cpio -H newc -R 0:0 -o -F ../ramdisk-new.cpio
+cd ..
+
+./magiskboot compress=$comp ramdisk-new.cpio 2>&1
+if [ $? != 0 ] && $comp --help 2>/dev/null; then
+  $comp -9c ramdisk-new.cpio > ramdisk.cpio.$comp
+fi
+rm -rf ramdisk.cpio.lz4_legacy ramdisk-new.cpio.lz4
+
+ramdisk=$(ls ramdisk-new.cpio* 2>/dev/null | tail -n1)
+cp -f $ramdisk ramdisk.cpio
+
+nocompflag="-n";;
+
+mkdir out
+./magiskboot repack $nocompflag vendor_boot.img ./out/vendor_boot.img
+
+cd ..
+cp -f ./vendor_boot/out/vendor_boot.img ./"Stock Package"/vendor_boot.img
+rm -rf ./vendor_boot
 
 echo "添加mi_block的Twrp Recovery"
 
@@ -239,13 +298,34 @@ sed -i '/<bool name="config_sunlight_mode_available">true<\/bool>/a \
     <!-- default rhythmic eyecare mode --> \
     <integer name="default_eyecare_mode">2</integer>' "$MIGRATION_EXTRACT_DIR/product/etc/device_features/nuwa.xml"
 
-# 解锁狂暴引擎开关 By ZnCl2
-echo "解锁狂暴引擎开关"
+# 解锁狂暴引擎 By ZnCl2
+echo "解锁狂暴引擎"
 sed -i '/<!-- BSP BEGIN -->/a \
     <!-- Whether support WildBoost --> \
     <bool name="support_wild_boost">true</bool> \
     <!-- Whether support WildBoost in Battery & Performance --> \
     <bool name="support_wild_boost_bat_perf">true</bool>' "$MIGRATION_EXTRACT_DIR/product/etc/device_features/nuwa.xml"
+
+# 插入狂暴引擎需要的依赖
+cp -f ./device_files/xiaomi_sm8550_files/perfmgr.ko "$STOCK_EXTRACT_DIR/vendor_dlkm/lib/modules/"
+sed -i '/\/vendor\/lib\/modules\/msm_gpi\.ko:/a \/vendor\/lib\/modules\/perfmgr.ko:' "$STOCK_EXTRACT_DIR/vendor_dlkm/lib/modules/modules.dep"
+sed -i '/migt\.ko/a perfmgr.ko' "$STOCK_EXTRACT_DIR/vendor_dlkm/lib/modules/modules.load"
+
+# magiskboot hexpatch处理部分
+./tools/binary/magiskboot hexpatch "$MIGRATION_EXTRACT_DIR"/system_ext/lib/libmigui.so 726F2E70726F647563742E646576696365 726F2E656173746D6F642E646576696365
+./tools/binary/magiskboot hexpatch "$MIGRATION_EXTRACT_DIR"/system_ext/lib/libmigui.so 726F2E70726F647563742E70726F647563742E6E616D65 726F2E656173746D6F642E70726F647563742E6E616D65
+./tools/binary/magiskboot hexpatch "$MIGRATION_EXTRACT_DIR"/system_ext/lib64/libmigui.so 726F2E70726F647563742E646576696365 726F2E656173746D6F642E646576696365
+./tools/binary/magiskboot hexpatch "$MIGRATION_EXTRACT_DIR"/system_ext/lib64/libmigui.so 726F2E70726F647563742E70726F647563742E6E616D65 726F2E656173746D6F642E70726F647563742E6E616D65
+
+sed -i '$a \
+# East added Xiaomi HyperOS Perfmgr \
+ro.eastmod.device=vermeer \
+ro.eastmod.product.name=vermeer' "$MIGRATION_EXTRACT_DIR/system_ext/etc/build.prop"
+
+# 替换修改的PowerKeeper，Joyose
+cp -f ./device_files/xiaomi_sm8550_files/Joyose.apk "$MIGRATION_EXTRACT_DIR"/product/pangu/system/app/Joyose/
+rm -rf "$MIGRATION_EXTRACT_DIR/system_ext/app/PowerKeeper/"
+pv device_files/xiaomi_sm8550_files/PowerKeeper.zip | bsdtar -xvf - -C "$MIGRATION_EXTRACT_DIR/system_ext/app"
 
 # 解锁无网通信 By ZnCl2
 echo "解锁无网通信"
@@ -449,17 +529,17 @@ sudo sed -i 's/ro.odm.build.date.utc=.*/ro.odm.build.date.utc='"$build_utc"'/' "
 
 # 自定义版本号
 echo "自定义版本号"
-sed -i 's/ro.mi.os.version.incremental=[^*]*/ro.mi.os.version.incremental=OS2.0.200.25.VMBCNXM/' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
+sed -i 's/ro.mi.os.version.incremental=[^*]*/ro.mi.os.version.incremental=OS2.0.205.0.VMBCNXM/' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
 sed -i 's/ro.product.mod_device=[^*]*/ro.product.mod_device=nuwa/' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
 sed -i 's/xuanyuan/nuwa/g' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
-sed -i 's/OS2.0.200.25.VOACNXM/OS2.0.200.25.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
-sed -i 's/OS2.0.200.25.VOACNXM/OS2.0.200.25.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
-sed -i 's/OS2.0.200.25.VOACNXM/OS2.0.200.25.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/system/system/build.prop
-sed -i 's/OS2.0.200.25.VOACNXM/OS2.0.200.25.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/system_ext/etc/build.prop
-sed -i 's/OS2.0.200.7.VMBCNXM/OS2.0.200.25.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/system_dlkm/etc/build.prop
-sed -i 's/OS2.0.200.7.VMBCNXM/OS2.0.200.25.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/vendor_dlkm/etc/build.prop
-sed -i 's/OS2.0.200.7.VMBCNXM/OS2.0.200.25.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/vendor/build.prop
-sed -i 's/OS2.0.200.7.VMBCNXM/OS2.0.200.25.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/odm/etc/build.prop
+sed -i 's/OS2.0.205.0.VOACNXM/OS2.0.205.0.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
+sed -i 's/OS2.0.205.0.VOACNXM/OS2.0.205.0.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
+sed -i 's/OS2.0.205.0.VOACNXM/OS2.0.205.0.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/system/system/build.prop
+sed -i 's/OS2.0.205.0.VOACNXM/OS2.0.205.0.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/system_ext/etc/build.prop
+sed -i 's/OS2.0.200.10.VMBCNXM/OS2.0.205.0.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/system_dlkm/etc/build.prop
+sed -i 's/OS2.0.200.10.VMBCNXM/OS2.0.205.0.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/vendor_dlkm/etc/build.prop
+sed -i 's/OS2.0.200.10.VMBCNXM/OS2.0.205.0.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/vendor/build.prop
+sed -i 's/OS2.0.200.10.VMBCNXM/OS2.0.205.0.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/odm/etc/build.prop
 
 # 解压刷机脚本
 unzip -o -q ./tools/flashscript/flashtools.zip -d ./output
@@ -527,7 +607,7 @@ system_dlkm_size=$(stat --format="%s" "$STOCK_EXTRACT_DIR"/system_dlkm.img)
 ./tools/binary/zstd -9 -f ./output/super.img -o ./output/super.zst --rm
 
 # 打包zip文件
-7z a ./zip/nuwa-ota_full-OS2.0.200.25.VMBCNXM-user-15.0.zip ./output/*
-MD5_HASH=$(md5sum "./zip/nuwa-ota_full-OS2.0.200.25.VMBCNXM-user-15.0.zip" | awk '{ print $1 }' | cut -c 1-10)
-mv "./zip/nuwa-ota_full-OS2.0.200.25.VMBCNXM-user-15.0.zip" "./zip/nuwa-ota_full-OS2.0.200.25.VMBCNXM-user-15.0-$MD5_HASH.zip"
+7z a ./zip/nuwa-ota_full-OS2.0.205.0.VMBCNXM-user-15.0.zip ./output/*
+MD5_HASH=$(md5sum "./zip/nuwa-ota_full-OS2.0.205.0.VMBCNXM-user-15.0.zip" | awk '{ print $1 }' | cut -c 1-10)
+mv "./zip/nuwa-ota_full-OS2.0.205.0.VMBCNXM-user-15.0.zip" "./zip/nuwa-ota_full-OS2.0.205.0.VMBCNXM-user-15.0-$MD5_HASH.zip"
 

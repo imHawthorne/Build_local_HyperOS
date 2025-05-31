@@ -1,1 +1,1 @@
-sudo apt install pv libarchive-tools p7zip-full openjdk-21-jre-headless jq unzip python3
+sudo apt install pv libarchive-tools p7zip-full openjdk-21-jre-headless jq unzip python3 cpio lz4
