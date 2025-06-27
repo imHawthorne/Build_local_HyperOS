@@ -298,6 +298,15 @@ sed -i '/<bool name="config_sunlight_mode_available">true<\/bool>/a \
     <!-- default rhythmic eyecare mode --> \
     <integer name="default_eyecare_mode">2</integer>' "$MIGRATION_EXTRACT_DIR/product/etc/device_features/nuwa.xml"
 
+# 解锁24-30-40隐藏屏幕刷新率
+echo "解锁24-30-40hz隐藏刷新率支持"
+sed -i '/<integer-array name="fpsList">/,/<\/integer-array>/{
+    /<item>60<\/item>/a\
+        <item>40</item>\
+        <item>30</item>\
+        <item>24</item>
+}' "$MIGRATION_EXTRACT_DIR/product/etc/device_features/nuwa.xml"
+
 # 解锁狂暴引擎 By ZnCl2
 echo "解锁狂暴引擎"
 sed -i '/<!-- BSP BEGIN -->/a \
@@ -322,10 +331,8 @@ sed -i '$a \
 ro.eastmod.device=vermeer \
 ro.eastmod.product.name=vermeer' "$MIGRATION_EXTRACT_DIR/system_ext/etc/build.prop"
 
-# 替换修改的PowerKeeper，Joyose
-cp -f ./device_files/xiaomi_sm8550_files/Joyose.apk "$MIGRATION_EXTRACT_DIR"/product/pangu/system/app/Joyose/
-rm -rf "$MIGRATION_EXTRACT_DIR/system_ext/app/PowerKeeper/"
-pv device_files/xiaomi_sm8550_files/PowerKeeper.zip | bsdtar -xvf - -C "$MIGRATION_EXTRACT_DIR/system_ext/app"
+# 修改云控
+cp -f ./device_files/xiaomi_sm8550_files/default_cloud.json "$STOCK_EXTRACT_DIR/odm/etc/"
 
 # 解锁无网通信 By ZnCl2
 echo "解锁无网通信"
@@ -426,7 +433,14 @@ sed -i -e 's/^\(tango\.enabled\)/# \1/' \
         -e 's/^\(tango\.pretrans\.lib\)/# \1/' \
         -e 's/^\(tango\.pretrans\.apk\)/# \1/' "$MIGRATION_EXTRACT_DIR"/system/system/build.prop
 
+# 解锁MiuiCamera HLG支持 By ZnCl2
+echo "解锁MiuiCamera HLG支持"
+sed -i '$a \
+# Enable MiuiCamera HLG Support by ZnCl2 \Add commentMore actions
+persist.camera.settings.hlg=true' "$MIGRATION_EXTRACT_DIR/system_ext/etc/build.prop"
+
 # 替换Overlay
+echo "替换Overlay"
 mv -f "$STOCK_EXTRACT_DIR"/product/overlay/DevicesAndroidOverlay.apk "$MIGRATION_EXTRACT_DIR"/product/overlay
 mv -f "$STOCK_EXTRACT_DIR"/product/overlay/DevicesOverlay.apk "$MIGRATION_EXTRACT_DIR"/product/overlay
 mv -f "$STOCK_EXTRACT_DIR"/product/overlay/MiuiFrameworkResOverlay.apk "$MIGRATION_EXTRACT_DIR"/product/overlay
