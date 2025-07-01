@@ -59,7 +59,7 @@ done
 echo "所有镜像文件已提取完成！"
 
 # 解压移植包的 ZIP 文件
-MIGRATION_ZIP_FILE="./downloads/xuanyuan-ota_full-OS2.0.205.0.VOACNXM-user-15.0-2552a0e474.zip"
+MIGRATION_ZIP_FILE="./downloads/xuanyuan-ota_full-OS2.0.207.0.VOACNXM-user-15.0-a7c3fb1b3c.zip"
 MIGRATION_PAYLOAD_DIR="./Migration Package/payload.bin"
 MIGRATION_EXTRACT_DIR="./Migration Package"
 
@@ -436,7 +436,7 @@ sed -i -e 's/^\(tango\.enabled\)/# \1/' \
 # 解锁MiuiCamera HLG支持 By ZnCl2
 echo "解锁MiuiCamera HLG支持"
 sed -i '$a \
-# Enable MiuiCamera HLG Support by ZnCl2 \Add commentMore actions
+# Enable MiuiCamera HLG Support by ZnCl2 \
 persist.camera.settings.hlg=true' "$MIGRATION_EXTRACT_DIR/system_ext/etc/build.prop"
 
 # 替换Overlay
@@ -468,6 +468,10 @@ sudo rm -rf ./mod
 echo "恢复静止刷新率下限为1Hz"
 sed -i 's/ro.vendor.display.primary_idle_refresh_rate=[^*]*/ro.vendor.display.primary_idle_refresh_rate=60,1:492/' "$STOCK_EXTRACT_DIR/odm/etc/build.prop"
 
+# 更新Vulkan 1.4 By ZnCl2
+echo "解锁Vulkan 1.4"
+pv device_files/xiaomi_sm8550_files/Vulkan1.4-for-nuwa.zip | bsdtar -xvf - -C "$STOCK_EXTRACT_DIR/vendor"
+
 # 添加MiBeam支持
 cp -rf ./device_files/common_files/android.hardware.nfc.beam.xml "$STOCK_EXTRACT_DIR/odm/etc/permissions"
 sed -i ''"$(sed -n '/ro.vendor.nfc.dispatch_optim/=' "$STOCK_EXTRACT_DIR/odm/etc/build.prop")"'a ro.vendor.nfc.mibeam=1' "$STOCK_EXTRACT_DIR/odm/etc/build.prop"
@@ -480,10 +484,6 @@ sed -i 's/ro.vendor.nfc.dispatch_optim=[^*]*/ro.vendor.nfc.dispatch_optim=2/' "$
 echo "移植lhdc自适应采样率"
 sed -i 's/bluetooth.profile.hap.client.enabled=[^*]*/bluetooth.profile.hap.client.enabled=true/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
 sed -i ''"$(sed -n '/ro.miui.has_gmscore/=' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop)"'a persist.vendor.qcom.bluetooth.aptxadaptiver2_2_support=true' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
-
-# 解锁新版触感UI
-echo "解锁新版触感UI"
-sed -i ''"$(sed -n '/sys.haptic.version/=' "$STOCK_EXTRACT_DIR/odm/etc/build.prop")"'a sys.haptic.slide_version=2.0' "$STOCK_EXTRACT_DIR/odm/etc/build.prop"
 
 # ZRAM 1:1调整
 echo "zram 1:1调整"
@@ -509,13 +509,13 @@ sed -i 's/ro.miui.affinity.sfui=[^*]*/ro.miui.affinity.sfui=0-2/' "$MIGRATION_EX
 sed -i 's/ro.miui.affinity.sfre=[^*]*/ro.miui.affinity.sfre=0-2/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
 sed -i 's/persist.sys.dexpreload.other_cores=[^*]*/persist.sys.dexpreload.other_cores=0-2/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
 sed -i 's/persist.sys.dexpreload.cpu_cores=[^*]*/persist.sys.dexpreload.cpu_cores=0-7/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
-sed -i 's/persist.sys.dexpreload.big_prime_cores=[^*]*/persist.sys.dexpreload.big_prime_cores=3-6/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
+sed -i 's/persist.sys.dexpreload.big_prime_cores=[^*]*/persist.sys.dexpreload.big_prime_cores=3-7/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
 sed -i '$a \
 # East added for Xiaomi HyperOS Core allocation \
 persist.vendor.display.miui.composer_boost=3-7 \
-persist.sys.miui_animator_sched.big_prime_cores=7 \
+persist.sys.miui_animator_sched.big_prime_cores=3-7 \
 persist.sys.miui_animator_sched.sched_threads=2 \
-persist.sys.miui_animator_sched.bigcores=3-6' "$MIGRATION_EXTRACT_DIR/product/etc/build.prop"
+persist.sys.miui_animator_sched.bigcores=3-7' "$MIGRATION_EXTRACT_DIR/product/etc/build.prop"
 
 
 # 常规修改
@@ -543,17 +543,17 @@ sudo sed -i 's/ro.odm.build.date.utc=.*/ro.odm.build.date.utc='"$build_utc"'/' "
 
 # 自定义版本号
 echo "自定义版本号"
-sed -i 's/ro.mi.os.version.incremental=[^*]*/ro.mi.os.version.incremental=OS2.0.205.0.VMBCNXM/' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
+sed -i 's/ro.mi.os.version.incremental=[^*]*/ro.mi.os.version.incremental=OS2.0.207.0.VMBCNXM/' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
 sed -i 's/ro.product.mod_device=[^*]*/ro.product.mod_device=nuwa/' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
 sed -i 's/xuanyuan/nuwa/g' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
-sed -i 's/OS2.0.205.0.VOACNXM/OS2.0.205.0.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
-sed -i 's/OS2.0.205.0.VOACNXM/OS2.0.205.0.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
-sed -i 's/OS2.0.205.0.VOACNXM/OS2.0.205.0.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/system/system/build.prop
-sed -i 's/OS2.0.205.0.VOACNXM/OS2.0.205.0.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/system_ext/etc/build.prop
-sed -i 's/OS2.0.200.10.VMBCNXM/OS2.0.205.0.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/system_dlkm/etc/build.prop
-sed -i 's/OS2.0.200.10.VMBCNXM/OS2.0.205.0.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/vendor_dlkm/etc/build.prop
-sed -i 's/OS2.0.200.10.VMBCNXM/OS2.0.205.0.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/vendor/build.prop
-sed -i 's/OS2.0.200.10.VMBCNXM/OS2.0.205.0.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/odm/etc/build.prop
+sed -i 's/OS2.0.207.0.VOACNXM/OS2.0.207.0.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
+sed -i 's/OS2.0.207.0.VOACNXM/OS2.0.207.0.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
+sed -i 's/OS2.0.207.0.VOACNXM/OS2.0.207.0.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/system/system/build.prop
+sed -i 's/OS2.0.207.0.VOACNXM/OS2.0.207.0.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/system_ext/etc/build.prop
+sed -i 's/OS2.0.200.10.VMBCNXM/OS2.0.207.0.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/system_dlkm/etc/build.prop
+sed -i 's/OS2.0.200.10.VMBCNXM/OS2.0.207.0.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/vendor_dlkm/etc/build.prop
+sed -i 's/OS2.0.200.10.VMBCNXM/OS2.0.207.0.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/vendor/build.prop
+sed -i 's/OS2.0.200.10.VMBCNXM/OS2.0.207.0.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/odm/etc/build.prop
 
 # 解压刷机脚本
 unzip -o -q ./tools/flashscript/flashtools.zip -d ./output
@@ -621,7 +621,7 @@ system_dlkm_size=$(stat --format="%s" "$STOCK_EXTRACT_DIR"/system_dlkm.img)
 ./tools/binary/zstd -9 -f ./output/super.img -o ./output/super.zst --rm
 
 # 打包zip文件
-7z a ./zip/nuwa-ota_full-OS2.0.205.0.VMBCNXM-user-15.0.zip ./output/*
-MD5_HASH=$(md5sum "./zip/nuwa-ota_full-OS2.0.205.0.VMBCNXM-user-15.0.zip" | awk '{ print $1 }' | cut -c 1-10)
-mv "./zip/nuwa-ota_full-OS2.0.205.0.VMBCNXM-user-15.0.zip" "./zip/nuwa-ota_full-OS2.0.205.0.VMBCNXM-user-15.0-$MD5_HASH.zip"
+7z a ./zip/nuwa-ota_full-OS2.0.207.0.VMBCNXM-user-15.0.zip ./output/*
+MD5_HASH=$(md5sum "./zip/nuwa-ota_full-OS2.0.207.0.VMBCNXM-user-15.0.zip" | awk '{ print $1 }' | cut -c 1-10)
+mv "./zip/nuwa-ota_full-OS2.0.207.0.VMBCNXM-user-15.0.zip" "./zip/nuwa-ota_full-OS2.0.207.0.VMBCNXM-user-15.0-$MD5_HASH.zip"
 
