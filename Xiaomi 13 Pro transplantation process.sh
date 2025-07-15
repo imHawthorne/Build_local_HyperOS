@@ -22,7 +22,7 @@ for file in "${files[@]}"; do
 done
 
 # 解压指定的 ZIP 文件
-STOCK_ZIP_FILE="./downloads/nuwa-ota_full-OS2.0.200.10.VMBCNXM-user-15.0-6165f9a21b.zip"
+STOCK_ZIP_FILE="./downloads/nuwa-ota_full-OS2.0.203.0.VMBCNXM-user-15.0-452801a3d4.zip"
 STOCK_PAYLOAD_DIR="./Stock Package/payload.bin"
 STOCK_EXTRACT_DIR="./Stock Package"
 
@@ -59,7 +59,7 @@ done
 echo "所有镜像文件已提取完成！"
 
 # 解压移植包的 ZIP 文件
-MIGRATION_ZIP_FILE="./downloads/xuanyuan-ota_full-OS2.0.207.0.VOACNXM-user-15.0-a7c3fb1b3c.zip"
+MIGRATION_ZIP_FILE="./downloads/xuanyuan-ota_full-OS2.0.210.0.VOACNXM-user-15.0-1b3dd172c1.zip"
 MIGRATION_PAYLOAD_DIR="./Migration Package/payload.bin"
 MIGRATION_EXTRACT_DIR="./Migration Package"
 
@@ -178,11 +178,12 @@ cd ..
 if [ $? != 0 ] && $comp --help 2>/dev/null; then
   $comp -9c ramdisk-new.cpio > ramdisk.cpio.$comp
 fi
-rm -rf ramdisk.cpio.lz4_legacy ramdisk-new.cpio.lz4
+rm -rf ramdisk.cpio.lz4_legacy ramdisk.cpio
 
 ramdisk=$(ls ramdisk-new.cpio* 2>/dev/null | tail -n1)
 cp -f $ramdisk ramdisk.cpio
 
+rm -rf ramdisk-new.cpio.lz4
 nocompflag="-n";;
 
 mkdir out
@@ -543,17 +544,17 @@ sudo sed -i 's/ro.odm.build.date.utc=.*/ro.odm.build.date.utc='"$build_utc"'/' "
 
 # 自定义版本号
 echo "自定义版本号"
-sed -i 's/ro.mi.os.version.incremental=[^*]*/ro.mi.os.version.incremental=OS2.0.207.0.VMBCNXM/' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
+sed -i 's/ro.mi.os.version.incremental=[^*]*/ro.mi.os.version.incremental=OS2.0.210.0.VMBCNXM/' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
 sed -i 's/ro.product.mod_device=[^*]*/ro.product.mod_device=nuwa/' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
 sed -i 's/xuanyuan/nuwa/g' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
-sed -i 's/OS2.0.207.0.VOACNXM/OS2.0.207.0.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
-sed -i 's/OS2.0.207.0.VOACNXM/OS2.0.207.0.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
-sed -i 's/OS2.0.207.0.VOACNXM/OS2.0.207.0.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/system/system/build.prop
-sed -i 's/OS2.0.207.0.VOACNXM/OS2.0.207.0.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/system_ext/etc/build.prop
-sed -i 's/OS2.0.200.10.VMBCNXM/OS2.0.207.0.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/system_dlkm/etc/build.prop
-sed -i 's/OS2.0.200.10.VMBCNXM/OS2.0.207.0.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/vendor_dlkm/etc/build.prop
-sed -i 's/OS2.0.200.10.VMBCNXM/OS2.0.207.0.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/vendor/build.prop
-sed -i 's/OS2.0.200.10.VMBCNXM/OS2.0.207.0.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/odm/etc/build.prop
+sed -i 's/OS2.0.210.0.VOACNXM/OS2.0.210.0.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
+sed -i 's/OS2.0.210.0.VOACNXM/OS2.0.210.0.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
+sed -i 's/OS2.0.210.0.VOACNXM/OS2.0.210.0.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/system/system/build.prop
+sed -i 's/OS2.0.210.0.VOACNXM/OS2.0.210.0.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/system_ext/etc/build.prop
+sed -i 's/OS2.0.203.0.VMBCNXM/OS2.0.210.0.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/system_dlkm/etc/build.prop
+sed -i 's/OS2.0.203.0.VMBCNXM/OS2.0.210.0.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/vendor_dlkm/etc/build.prop
+sed -i 's/OS2.0.203.0.VMBCNXM/OS2.0.210.0.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/vendor/build.prop
+sed -i 's/OS2.0.203.0.VMBCNXM/OS2.0.210.0.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/odm/etc/build.prop
 
 # 解压刷机脚本
 unzip -o -q ./tools/flashscript/flashtools.zip -d ./output
@@ -621,7 +622,7 @@ system_dlkm_size=$(stat --format="%s" "$STOCK_EXTRACT_DIR"/system_dlkm.img)
 ./tools/binary/zstd -9 -f ./output/super.img -o ./output/super.zst --rm
 
 # 打包zip文件
-7z a ./zip/nuwa-ota_full-OS2.0.207.0.VMBCNXM-user-15.0.zip ./output/*
-MD5_HASH=$(md5sum "./zip/nuwa-ota_full-OS2.0.207.0.VMBCNXM-user-15.0.zip" | awk '{ print $1 }' | cut -c 1-10)
-mv "./zip/nuwa-ota_full-OS2.0.207.0.VMBCNXM-user-15.0.zip" "./zip/nuwa-ota_full-OS2.0.207.0.VMBCNXM-user-15.0-$MD5_HASH.zip"
+7z a ./zip/nuwa-ota_full-OS2.0.210.0.VMBCNXM-user-15.0.zip ./output/*
+MD5_HASH=$(md5sum "./zip/nuwa-ota_full-OS2.0.210.0.VMBCNXM-user-15.0.zip" | awk '{ print $1 }' | cut -c 1-10)
+mv "./zip/nuwa-ota_full-OS2.0.210.0.VMBCNXM-user-15.0.zip" "./zip/nuwa-ota_full-OS2.0.210.0.VMBCNXM-user-15.0-$MD5_HASH.zip"
 
