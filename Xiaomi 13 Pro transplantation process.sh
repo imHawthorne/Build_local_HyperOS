@@ -470,8 +470,8 @@ echo "恢复静止刷新率下限为1Hz"
 sed -i 's/ro.vendor.display.primary_idle_refresh_rate=[^*]*/ro.vendor.display.primary_idle_refresh_rate=60,1:492/' "$STOCK_EXTRACT_DIR/odm/etc/build.prop"
 
 # 更新Vulkan 1.4 By ZnCl2
-echo "解锁Vulkan 1.4"
-pv device_files/xiaomi_sm8550_files/Vulkan1.4-for-nuwa.zip | bsdtar -xvf - -C "$STOCK_EXTRACT_DIR/vendor"
+# echo "解锁Vulkan 1.4"
+# pv device_files/xiaomi_sm8550_files/Vulkan1.4-for-nuwa.zip | bsdtar -xvf - -C "$STOCK_EXTRACT_DIR/vendor"
 
 # 添加MiBeam支持
 cp -rf ./device_files/common_files/android.hardware.nfc.beam.xml "$STOCK_EXTRACT_DIR/odm/etc/permissions"
