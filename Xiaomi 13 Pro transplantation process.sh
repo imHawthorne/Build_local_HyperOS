@@ -8,7 +8,7 @@ sudo timedatectl set-timezone Asia/Shanghai
 echo "为自动构建需要运行的binary设置权限..."
 files=(
     "./tools/binary/zstd"
-    "./tools/binary/payload-dumper-go"
+    "./tools/binary/payload_extract"
     "./tools/binary/extract.erofs"
     "./tools/binary/vbmeta-disable-verification"
     "./tools/binary/mkfs.erofs"
@@ -22,22 +22,10 @@ for file in "${files[@]}"; do
 done
 
 # 解压指定的 ZIP 文件
-STOCK_ZIP_FILE="./downloads/nuwa-ota_full-OS2.0.203.0.VMBCNXM-user-15.0-452801a3d4.zip"
-STOCK_PAYLOAD_DIR="./Stock Package/payload.bin"
+STOCK_ZIP_FILE="./downloads/nuwa-ota_full-OS2.0.211.0.VMBCNXM-user-15.0-d7cf65d649.zip"
 STOCK_EXTRACT_DIR="./Stock Package"
 
-if [ -f "$STOCK_ZIP_FILE" ]; then
-    echo "解压 $STOCK_ZIP_FILE..."
-    mkdir -p "$STOCK_EXTRACT_DIR"
-    pv "$STOCK_ZIP_FILE" | bsdtar -xvf - -C "$STOCK_EXTRACT_DIR"
-else
-    echo "未找到 ZIP 文件：$STOCK_ZIP_FILE"
-    exit 1
-fi
-
-# 解压payload.bin文件
-echo "解压移植包的payload.bin"
-./tools/binary/payload-dumper-go -o "$STOCK_EXTRACT_DIR" "$STOCK_PAYLOAD_DIR"
+./tools/binary/payload_extract -i "$STOCK_ZIP_FILE" -t zip -o "$STOCK_EXTRACT_DIR" -x
 
 # 提取镜像文件内容
 images=(
@@ -59,22 +47,10 @@ done
 echo "所有镜像文件已提取完成！"
 
 # 解压移植包的 ZIP 文件
-MIGRATION_ZIP_FILE="./downloads/xuanyuan-ota_full-OS2.0.210.0.VOACNXM-user-15.0-1b3dd172c1.zip"
-MIGRATION_PAYLOAD_DIR="./Migration Package/payload.bin"
+MIGRATION_ZIP_FILE="./downloads/xuanyuan-ota_full-OS2.0.215.0.VOACNXM-user-15.0-01bf68da5c.zip"
 MIGRATION_EXTRACT_DIR="./Migration Package"
 
-if [ -f "$MIGRATION_ZIP_FILE" ]; then
-    echo "解压 $MIGRATION_ZIP_FILE..."
-    mkdir -p "$MIGRATION_EXTRACT_DIR"
-    pv "$MIGRATION_ZIP_FILE" | bsdtar -xvf - -C "$MIGRATION_EXTRACT_DIR"
-else
-    echo "未找到 ZIP 文件：$MIGRATION_ZIP_FILE"
-    exit 1
-fi
-
-# 解压payload.bin文件
-echo "解压移植包的payload.bin"
-./tools/binary/payload-dumper-go -o "$MIGRATION_EXTRACT_DIR" "$MIGRATION_PAYLOAD_DIR"
+./tools/binary/payload_extract -i "$MIGRATION_ZIP_FILE" -t zip -o "$MIGRATION_EXTRACT_DIR" -x
 
 # 提取镜像文件内容
 images=(
@@ -225,6 +201,11 @@ if [ $? -eq 0 ]; then
 else
     echo "移动文件时发生错误"
 fi
+
+# 禁用Xiaomi的f2fs_gc
+echo "禁用Xiaomi f2fs gc"
+sed -i 's/persist.sys.stability.gcImproveEnable.808=true/# persist.sys.stability.gcImproveEnable.808=true/g' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
+sudo sed -i 's/^\(persist\.sys\.stability\.f2fsTrackEnable=.*\)/#\1/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
 
 # 添加机型文件
 echo "添加机型文件"
@@ -473,6 +454,10 @@ sed -i 's/ro.vendor.display.primary_idle_refresh_rate=[^*]*/ro.vendor.display.pr
 # echo "解锁Vulkan 1.4"
 # pv device_files/xiaomi_sm8550_files/Vulkan1.4-for-nuwa.zip | bsdtar -xvf - -C "$STOCK_EXTRACT_DIR/vendor"
 
+# 启用vulkan渲染
+echo "启用vulkan渲染"
+sed -i 's/ro.hwui.use_vulkan=.*/debug.renderengine.vulkan=true\ndebug.hwui.renderer=skiavk\nro.hwui.use_vulkan=true\ndebug.renderengine.backend=skiavkthreaded\ndebug.stagefright.renderengine.backend=threaded/' "./$STOCK_EXTRACT_DIR/vendor/build.prop"
+
 # 添加MiBeam支持
 cp -rf ./device_files/common_files/android.hardware.nfc.beam.xml "$STOCK_EXTRACT_DIR/odm/etc/permissions"
 sed -i ''"$(sed -n '/ro.vendor.nfc.dispatch_optim/=' "$STOCK_EXTRACT_DIR/odm/etc/build.prop")"'a ro.vendor.nfc.mibeam=1' "$STOCK_EXTRACT_DIR/odm/etc/build.prop"
@@ -544,17 +529,17 @@ sudo sed -i 's/ro.odm.build.date.utc=.*/ro.odm.build.date.utc='"$build_utc"'/' "
 
 # 自定义版本号
 echo "自定义版本号"
-sed -i 's/ro.mi.os.version.incremental=[^*]*/ro.mi.os.version.incremental=OS2.0.210.0.VMBCNXM/' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
+sed -i 's/ro.mi.os.version.incremental=[^*]*/ro.mi.os.version.incremental=OS2.0.215.0.VMBCNXM/' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
 sed -i 's/ro.product.mod_device=[^*]*/ro.product.mod_device=nuwa/' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
 sed -i 's/xuanyuan/nuwa/g' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
-sed -i 's/OS2.0.210.0.VOACNXM/OS2.0.210.0.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
-sed -i 's/OS2.0.210.0.VOACNXM/OS2.0.210.0.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
-sed -i 's/OS2.0.210.0.VOACNXM/OS2.0.210.0.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/system/system/build.prop
-sed -i 's/OS2.0.210.0.VOACNXM/OS2.0.210.0.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/system_ext/etc/build.prop
-sed -i 's/OS2.0.203.0.VMBCNXM/OS2.0.210.0.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/system_dlkm/etc/build.prop
-sed -i 's/OS2.0.203.0.VMBCNXM/OS2.0.210.0.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/vendor_dlkm/etc/build.prop
-sed -i 's/OS2.0.203.0.VMBCNXM/OS2.0.210.0.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/vendor/build.prop
-sed -i 's/OS2.0.203.0.VMBCNXM/OS2.0.210.0.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/odm/etc/build.prop
+sed -i 's/OS2.0.215.0.VOACNXM/OS2.0.215.0.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
+sed -i 's/OS2.0.215.0.VOACNXM/OS2.0.215.0.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
+sed -i 's/OS2.0.215.0.VOACNXM/OS2.0.215.0.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/system/system/build.prop
+sed -i 's/OS2.0.215.0.VOACNXM/OS2.0.215.0.VMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/system_ext/etc/build.prop
+sed -i 's/OS2.0.211.0.VMBCNXM/OS2.0.215.0.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/system_dlkm/etc/build.prop
+sed -i 's/OS2.0.211.0.VMBCNXM/OS2.0.215.0.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/vendor_dlkm/etc/build.prop
+sed -i 's/OS2.0.211.0.VMBCNXM/OS2.0.215.0.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/vendor/build.prop
+sed -i 's/OS2.0.211.0.VMBCNXM/OS2.0.215.0.VMBCNXM/g' "$STOCK_EXTRACT_DIR"/odm/etc/build.prop
 
 # 解压刷机脚本
 unzip -o -q ./tools/flashscript/flashtools.zip -d ./output
@@ -622,7 +607,7 @@ system_dlkm_size=$(stat --format="%s" "$STOCK_EXTRACT_DIR"/system_dlkm.img)
 ./tools/binary/zstd -9 -f ./output/super.img -o ./output/super.zst --rm
 
 # 打包zip文件
-7z a ./zip/nuwa-ota_full-OS2.0.210.0.VMBCNXM-user-15.0.zip ./output/*
-MD5_HASH=$(md5sum "./zip/nuwa-ota_full-OS2.0.210.0.VMBCNXM-user-15.0.zip" | awk '{ print $1 }' | cut -c 1-10)
-mv "./zip/nuwa-ota_full-OS2.0.210.0.VMBCNXM-user-15.0.zip" "./zip/nuwa-ota_full-OS2.0.210.0.VMBCNXM-user-15.0-$MD5_HASH.zip"
+7z a ./zip/nuwa-ota_full-OS2.0.215.0.VMBCNXM-user-15.0.zip ./output/*
+MD5_HASH=$(md5sum "./zip/nuwa-ota_full-OS2.0.215.0.VMBCNXM-user-15.0.zip" | awk '{ print $1 }' | cut -c 1-10)
+mv "./zip/nuwa-ota_full-OS2.0.215.0.VMBCNXM-user-15.0.zip" "./zip/nuwa-ota_full-OS2.0.215.0.VMBCNXM-user-15.0-$MD5_HASH.zip"
 

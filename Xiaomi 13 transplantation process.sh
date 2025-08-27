@@ -8,7 +8,7 @@ sudo timedatectl set-timezone Asia/Shanghai
 echo "为自动构建需要运行的binary设置权限..."
 files=(
     "./tools/binary/zstd"
-    "./tools/binary/payload-dumper-go"
+    "./tools/binary/payload_extract"
     "./tools/binary/extract.erofs"
     "./tools/binary/vbmeta-disable-verification"
     "./tools/binary/mkfs.erofs"
@@ -22,22 +22,10 @@ for file in "${files[@]}"; do
 done
 
 # 解压指定的 ZIP 文件
-STOCK_ZIP_FILE="./downloads/fuxi-ota_full-OS2.0.203.0.VMCCNXM-user-15.0-c635d55d5c.zip"
-STOCK_PAYLOAD_DIR="./Stock Package/payload.bin"
+STOCK_ZIP_FILE="./downloads/fuxi-ota_full-OS2.0.207.0.VMCCNXM-user-15.0-39e99c5d6d.zip"
 STOCK_EXTRACT_DIR="./Stock Package"
 
-if [ -f "$STOCK_ZIP_FILE" ]; then
-    echo "解压 $STOCK_ZIP_FILE..."
-    mkdir -p "$STOCK_EXTRACT_DIR"
-    pv "$STOCK_ZIP_FILE" | bsdtar -xvf - -C "$STOCK_EXTRACT_DIR"
-else
-    echo "未找到 ZIP 文件：$STOCK_ZIP_FILE"
-    exit 1
-fi
-
-# 解压payload.bin文件
-echo "解压移植包的payload.bin"
-./tools/binary/payload-dumper-go -o "$STOCK_EXTRACT_DIR" "$STOCK_PAYLOAD_DIR"
+./tools/binary/payload_extract -i "$STOCK_ZIP_FILE" -t zip -o "$STOCK_EXTRACT_DIR" -x
 
 # 提取镜像文件内容
 images=(
@@ -59,22 +47,10 @@ done
 echo "所有镜像文件已提取完成！"
 
 # 解压移植包的 ZIP 文件
-MIGRATION_ZIP_FILE="./downloads/xuanyuan-ota_full-OS2.0.212.0.VOACNXM-user-15.0-5395f5a1d0.zip"
-MIGRATION_PAYLOAD_DIR="./Migration Package/payload.bin"
+MIGRATION_ZIP_FILE="./downloads/xuanyuan-ota_full-OS2.0.215.0.VOACNXM-user-15.0-01bf68da5c.zip"
 MIGRATION_EXTRACT_DIR="./Migration Package"
 
-if [ -f "$MIGRATION_ZIP_FILE" ]; then
-    echo "解压 $MIGRATION_ZIP_FILE..."
-    mkdir -p "$MIGRATION_EXTRACT_DIR"
-    pv "$MIGRATION_ZIP_FILE" | bsdtar -xvf - -C "$MIGRATION_EXTRACT_DIR"
-else
-    echo "未找到 ZIP 文件：$MIGRATION_ZIP_FILE"
-    exit 1
-fi
-
-# 解压payload.bin文件
-echo "解压移植包的payload.bin"
-./tools/binary/payload-dumper-go -o "$MIGRATION_EXTRACT_DIR" "$MIGRATION_PAYLOAD_DIR"
+./tools/binary/payload_extract -i "$MIGRATION_ZIP_FILE" -t zip -o "$MIGRATION_EXTRACT_DIR" -x
 
 # 提取镜像文件内容
 images=(
@@ -307,6 +283,10 @@ sed -i '/<!-- BSP BEGIN -->/a \
     <!-- whether support virtual call--> \
     <string name="support_virtual_call">fuxi</string>' "$MIGRATION_EXTRACT_DIR/product/etc/device_features/fuxi.xml"
 
+# 启用vulkan渲染
+echo "启用vulkan渲染"
+sed -i 's/ro.hwui.use_vulkan=.*/debug.renderengine.vulkan=true\ndebug.hwui.renderer=skiavk\nro.hwui.use_vulkan=true\ndebug.renderengine.backend=skiavkthreaded\ndebug.stagefright.renderengine.backend=threaded/' "./$STOCK_EXTRACT_DIR/vendor/build.prop"
+
 # 解锁控制中心透明效果
 echo "解锁控制中心透明效果"
 cp -f ./device_files/xiaomi_sm8550_files/EastXiaomiSystemUIOverlay.apk "$MIGRATION_EXTRACT_DIR"/product/overlay
@@ -416,29 +396,6 @@ mv -f "$STOCK_EXTRACT_DIR"/product/overlay/SettingsRroDeviceTypeOverlay.apk "$MI
 # mv -f "$STOCK_EXTRACT_DIR"/product/overlay/MiuiCameraOverlayLeicaed "$MIGRATION_EXTRACT_DIR"/product/overlay
 mv -f "$STOCK_EXTRACT_DIR"/product/overlay/MiuiFrameworkTelephonyResOverlay.apk "$MIGRATION_EXTRACT_DIR"/product/overlay
 
-# 去除无用的屏幕刘海切换
-# echo "去除无效的屏幕刘海切换"
-# mkdir -p ./mod/SettingsRroDeviceTypeOverlay
-# mv "$MIGRATION_EXTRACT_DIR"/product/overlay/SettingsRroDeviceTypeOverlay.apk ./mod
-# APKEditor="java -jar ./tools/jar/APKEditor.jar"
-# $APKEditor d -f -i ./mod/SettingsRroDeviceTypeOverlay.apk -o ./mod/SettingsRroDeviceTypeOverlay 2>&1 1>&/dev/null
-# sed -i '/<bool name="config_show_softap_wifi6">true<\/bool>/a \
-#   <bool name="config_device_support_force_black">false</bool>' ./mod/SettingsRroDeviceTypeOverlay/resources/package_1/res/values/bools.xml
-# sed -i '/<public id="0x7f010000" type="bool" name="config_global_support_slm" \/>/a \
-#   <public id="0x7f010002" type="bool" name="config_device_support_force_black" \/> ' ./mod/SettingsRroDeviceTypeOverlay/resources/package_1/res/values/public.xml
-# APKEditor="java -jar ./tools/jar/APKEditor.jar"
-# $APKEditor b -f -i ./mod/SettingsRroDeviceTypeOverlay -o ./mod/SettingsRroDeviceTypeOverlay_modified.apk 2>&1 1>&/dev/null
-# sudo mv ./mod/SettingsRroDeviceTypeOverlay_modified.apk "$MIGRATION_EXTRACT_DIR"/product/overlay/SettingsRroDeviceTypeOverlay.apk
-# sudo rm -rf ./mod
-
-# 恢复静止刷新率下限为1Hz
-# echo "恢复静止刷新率下限为1Hz"
-# sed -i 's/ro.vendor.display.primary_idle_refresh_rate=[^*]*/ro.vendor.display.primary_idle_refresh_rate=60,1:492/' "$STOCK_EXTRACT_DIR/odm/etc/build.prop"
-
-# 更新Vulkan 1.4 By ZnCl2
-# echo "解锁Vulkan 1.4"
-# pv device_files/xiaomi_sm8550_files/Vulkan1.4-for-fuxi.zip | bsdtar -xvf - -C "$STOCK_EXTRACT_DIR/vendor"
-
 # 添加MiBeam支持
 cp -rf ./device_files/common_files/android.hardware.nfc.beam.xml "$STOCK_EXTRACT_DIR/odm/etc/permissions"
 sed -i ''"$(sed -n '/ro.vendor.nfc.dispatch_optim/=' "$STOCK_EXTRACT_DIR/odm/etc/build.prop")"'a ro.vendor.nfc.mibeam=1' "$STOCK_EXTRACT_DIR/odm/etc/build.prop"
@@ -510,17 +467,17 @@ sudo sed -i 's/ro.odm.build.date.utc=.*/ro.odm.build.date.utc='"$build_utc"'/' "
 
 # 自定义版本号
 echo "自定义版本号"
-sed -i 's/ro.mi.os.version.incremental=[^*]*/ro.mi.os.version.incremental=OS2.0.212.0.VMCCNXM/' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
+sed -i 's/ro.mi.os.version.incremental=[^*]*/ro.mi.os.version.incremental=OS2.0.215.0.VMCCNXM/' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
 sed -i 's/ro.product.mod_device=[^*]*/ro.product.mod_device=fuxi/' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
 sed -i 's/xuanyuan/fuxi/g' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
-sed -i 's/OS2.0.212.0.VOACNXM/OS2.0.212.0.VMCCNXM/g' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
-sed -i 's/OS2.0.212.0.VOACNXM/OS2.0.212.0.VMCCNXM/g' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
-sed -i 's/OS2.0.212.0.VOACNXM/OS2.0.212.0.VMCCNXM/g' "$MIGRATION_EXTRACT_DIR"/system/system/build.prop
-sed -i 's/OS2.0.212.0.VOACNXM/OS2.0.212.0.VMCCNXM/g' "$MIGRATION_EXTRACT_DIR"/system_ext/etc/build.prop
-sed -i 's/OS2.0.203.0.VMCCNXM/OS2.0.212.0.VMCCNXM/g' "$STOCK_EXTRACT_DIR"/system_dlkm/etc/build.prop
-sed -i 's/OS2.0.203.0.VMCCNXM/OS2.0.212.0.VMCCNXM/g' "$STOCK_EXTRACT_DIR"/vendor_dlkm/etc/build.prop
-sed -i 's/OS2.0.203.0.VMCCNXM/OS2.0.212.0.VMCCNXM/g' "$STOCK_EXTRACT_DIR"/vendor/build.prop
-sed -i 's/OS2.0.203.0.VMCCNXM/OS2.0.212.0.VMCCNXM/g' "$STOCK_EXTRACT_DIR"/odm/etc/build.prop
+sed -i 's/OS2.0.215.0.VOACNXM/OS2.0.215.0.VMCCNXM/g' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
+sed -i 's/OS2.0.215.0.VOACNXM/OS2.0.215.0.VMCCNXM/g' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
+sed -i 's/OS2.0.215.0.VOACNXM/OS2.0.215.0.VMCCNXM/g' "$MIGRATION_EXTRACT_DIR"/system/system/build.prop
+sed -i 's/OS2.0.215.0.VOACNXM/OS2.0.215.0.VMCCNXM/g' "$MIGRATION_EXTRACT_DIR"/system_ext/etc/build.prop
+sed -i 's/OS2.0.207.0.VMCCNXM/OS2.0.215.0.VMCCNXM/g' "$STOCK_EXTRACT_DIR"/system_dlkm/etc/build.prop
+sed -i 's/OS2.0.207.0.VMCCNXM/OS2.0.215.0.VMCCNXM/g' "$STOCK_EXTRACT_DIR"/vendor_dlkm/etc/build.prop
+sed -i 's/OS2.0.207.0.VMCCNXM/OS2.0.215.0.VMCCNXM/g' "$STOCK_EXTRACT_DIR"/vendor/build.prop
+sed -i 's/OS2.0.207.0.VMCCNXM/OS2.0.215.0.VMCCNXM/g' "$STOCK_EXTRACT_DIR"/odm/etc/build.prop
 
 # 解压刷机脚本
 unzip -o -q ./tools/flashscript/flashtools.zip -d ./output
@@ -592,8 +549,8 @@ system_dlkm_size=$(stat --format="%s" "$STOCK_EXTRACT_DIR"/system_dlkm.img)
 ./tools/binary/zstd -9 -f ./output/super.img -o ./output/super.zst --rm
 
 # 打包zip文件
-7z a ./zip/fuxi-ota_full-OS2.0.212.0.VMCCNXM-user-15.0.zip ./output/*
-MD5_HASH=$(md5sum "./zip/fuxi-ota_full-OS2.0.212.0.VMCCNXM-user-15.0.zip" | awk '{ print $1 }' | cut -c 1-10)
-mv "./zip/fuxi-ota_full-OS2.0.212.0.VMCCNXM-user-15.0.zip" "./zip/fuxi-ota_full-OS2.0.212.0.VMCCNXM-user-15.0-$MD5_HASH.zip"
+7z a ./zip/fuxi-ota_full-OS2.0.215.0.VMCCNXM-user-15.0.zip ./output/*
+MD5_HASH=$(md5sum "./zip/fuxi-ota_full-OS2.0.215.0.VMCCNXM-user-15.0.zip" | awk '{ print $1 }' | cut -c 1-10)
+mv "./zip/fuxi-ota_full-OS2.0.215.0.VMCCNXM-user-15.0.zip" "./zip/fuxi-ota_full-OS2.0.215.0.VMCCNXM-user-15.0-$MD5_HASH.zip"
 
 rm -rf "Migration Package" "Stock Package" output
