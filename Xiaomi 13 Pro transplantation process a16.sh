@@ -496,7 +496,7 @@ sed -i ''"$(sed -n '/ro.miui.has_gmscore/=' "$MIGRATION_EXTRACT_DIR"/product/etc
 echo "zram 1:1调整"
 mkdir -p ./tmp
 sudo mv "$MIGRATION_EXTRACT_DIR"/system_ext/etc/perfinit_bdsize_zram.conf ./tmp/
-jq '.zram += [{"product_name": ["umi", "cmi", "cas", "apollo", "thyme", "alioth", "munch", "venus", "mars", "star", "odin", "fuxi", "nuwa", "ishtar"], "zram_size": {"6": 6144, "8": 8192, "12": 12288, "16": 16384}}]' ./tmp/perfinit_bdsize_zram.conf >./tmp/perfinit_bdsize_zram_out.conf
+jq '.zram += [{"product_name": ["umi", "cmi", "cas", "apollo", "thyme", "alioth", "munch", "venus", "mars", "star", "odin", "fuxi", "nuwa", "ishtar"], "zram_size": {"6": 6144, "8": 8192, "12": 12288, "16": 16384, "24": 24567}}]' ./tmp/perfinit_bdsize_zram.conf >./tmp/perfinit_bdsize_zram_out.conf
 sudo mv ./tmp/perfinit_bdsize_zram_out.conf "$MIGRATION_EXTRACT_DIR"/system_ext/etc/perfinit_bdsize_zram.conf
 sudo rm -rf ./tmp
 
@@ -632,4 +632,19 @@ system_dlkm_size=$(stat --format="%s" "$STOCK_EXTRACT_DIR"/system_dlkm.img)
 MD5_HASH=$(md5sum "./zip/nuwa-ota_full-OS3.0.0.18.WMBCNXM-user-16.0.zip" | awk '{ print $1 }' | cut -c 1-10)
 mv "./zip/nuwa-ota_full-OS3.0.0.18.WMBCNXM-user-16.0.zip" "./zip/nuwa-ota_full-OS3.0.0.18.WMBCNXM-user-16.0-$MD5_HASH.zip"
 
-rm -rf "Migration Package" "Stock Package" output mod
+ㅤ
+
+来自Github的新推送：
+Xiaomi 13 Ultra的HyperOS3.0 Beta移植新版本
+
+以下是同步自Github的新日志：
+系统升级到Android 16的HyperOS3
+基于Xiaomi 15 Ultra的Beta版本制作，OS3.0.0.18.WOACNXM
+修复息屏显示
+修复圆角锯齿
+升级6.1.000390.0相机
+其他改进
+
+下载地址在群公告，不需要id补丁即可开机
+
+公告发布来自：Wanderlust-AutoBuild
