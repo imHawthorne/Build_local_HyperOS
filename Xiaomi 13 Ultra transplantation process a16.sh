@@ -172,7 +172,7 @@ rm -rf ./vendor_boot
 echo "添加mi_block的Twrp Recovery"
 
 # 定义源文件和目标目录
-SOURCE_FILE="./tools/recovery/[REC]3.7.1_12-Mi13Ultra_v9.0_A15-ishtar-skkk.img"
+SOURCE_FILE="./tools/recovery/[REC]3.7.1_12-Mi13Ultra_v9.0_A16-ishtar-skkk.img"
 STOCK_EXTRACT_DIR="./Stock Package"
 DESTINATION_FILE="$STOCK_EXTRACT_DIR/recovery.img"
 
@@ -205,7 +205,7 @@ fi
 # 禁用Xiaomi的f2fs_gc
 echo "禁用Xiaomi f2fs gc"
 sed -i 's/persist.sys.stability.gcImproveEnable.808=true/# persist.sys.stability.gcImproveEnable.808=true/g' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
-sudo sed -i 's/^\(persist\.sys\.stability\.f2fsTrackEnable=.*\)/#\1/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
+sed -i 's/^\(persist\.sys\.stability\.f2fsTrackEnable=.*\)/#\1/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
 
 # 禁用mi 全局vulkan
 sed -i 's/persist.sys.enhance_vkpipelinecache.enable=true/# persist.sys.enhance_vkpipelinecache.enable=true/g' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
@@ -242,6 +242,11 @@ cp -rf "$STOCK_EXTRACT_DIR/product/app/AiasstVision/" "$MIGRATION_EXTRACT_DIR/pr
 echo "修复MiAONService"
 rm -rf "$MIGRATION_EXTRACT_DIR/product/app/MiAONServiceV/"
 cp -rf "$STOCK_EXTRACT_DIR/product/app/MiAONService/" "$MIGRATION_EXTRACT_DIR/product/app/MiAONService/"
+
+# 修复蓝牙不停报错
+echo "修复蓝牙报错"
+7z x ./device_files/common_files/fix-bluetooth-err-patch1.7z -o"$MIGRATION_EXTRACT_DIR/system/system"
+7z x ./device_files/common_files/fix-bluetooth-err-patch2.7z -o"$MIGRATION_EXTRACT_DIR/system_ext"
 
 # 恢复官方壁纸
 echo "恢复官方壁纸"
@@ -315,12 +320,13 @@ sed -i '/migt\.ko/a perfmgr.ko' "$STOCK_EXTRACT_DIR/vendor_dlkm/lib/modules/modu
 ./tools/binary/magiskboot hexpatch "$MIGRATION_EXTRACT_DIR"/system_ext/lib64/libmigui.so 726F2E70726F647563742E70726F647563742E6E616D65 726F2E656173746D6F642E70726F647563742E6E616D65
 
 sed -i '$a \
-# East added Xiaomi HyperOS Perfmgr \
+# Wanderlust FEAS Model \
 ro.eastmod.device=vermeer \
 ro.eastmod.product.name=vermeer' "$MIGRATION_EXTRACT_DIR/system_ext/etc/build.prop"
 
 # 修改云控
-cp -f ./device_files/xiaomi_sm8550_files/default_cloud.json "$STOCK_EXTRACT_DIR/odm/etc/"
+cp -f ./device_files/xiaomi_sm8550_files/Joyose.apk "$MIGRATION_EXTRACT_DIR/product/pangu/system/app/Joyose/"
+7z x ./device_files/xiaomi_sm8550_files/PowerKeeper.7z -o"$MIGRATION_EXTRACT_DIR/system_ext/app/"
 
 # 解锁无网通信 By ZnCl2
 echo "解锁无网通信"
@@ -427,6 +433,12 @@ sed -i '$a \
 # Enable MiuiCamera HLG Support by ZnCl2 \
 persist.camera.settings.hlg=true' "$MIGRATION_EXTRACT_DIR/system_ext/etc/build.prop"
 
+# 解锁LHDC自适应采样率 By ZnCl2
+echo "解锁LHDC自适应采样率"
+sed -i '$a \
+# Enable A2DP Samplerate \
+persist.vendor.bt.a2dp.samplerate.supported=true' "$MIGRATION_EXTRACT_DIR/system_ext/etc/build.prop"
+
 # 替换Overlay
 echo "替换Overlay"
 mv -f "$STOCK_EXTRACT_DIR"/product/overlay/DevicesAndroidOverlay.apk "$MIGRATION_EXTRACT_DIR"/product/overlay
@@ -476,18 +488,34 @@ sed -i 's/ro.vendor.display.primary_idle_refresh_rate=[^*]*/ro.vendor.display.pr
 echo "启用vulkan渲染"
 sed -i 's/ro.hwui.use_vulkan=.*/debug.renderengine.vulkan=true\ndebug.hwui.renderer=skiavk\nro.hwui.use_vulkan=true\ndebug.renderengine.backend=skiavkthreaded\ndebug.stagefright.renderengine.backend=threaded/' "./$STOCK_EXTRACT_DIR/vendor/build.prop"
 
-# 添加MiBeam支持
-cp -rf ./device_files/common_files/android.hardware.nfc.beam.xml "$STOCK_EXTRACT_DIR/odm/etc/permissions"
-sed -i ''"$(sed -n '/ro.vendor.nfc.dispatch_optim/=' "$STOCK_EXTRACT_DIR/odm/etc/build.prop")"'a ro.vendor.nfc.mibeam=1' "$STOCK_EXTRACT_DIR/odm/etc/build.prop"
+# 添加uwb支持
+echo "添加uwb支持"
+cp -rf ./device_files/common_files/android.hardware.uwb.xml "$STOCK_EXTRACT_DIR/odm/etc/permissions"
+
+# 修复小米的贴贴分享
+sed -i ''"$(sed -n '/ro.vendor.nfc.dispatch_optim/=' "$STOCK_EXTRACT_DIR/odm/etc/build.prop")"'a ro.vendor.nfc.mitouch=1' "$STOCK_EXTRACT_DIR/odm/etc/build.prop"
 
 # 解锁新版nfc读写勿扰2.0
 echo "解锁新版nfc读写勿扰2.0"
 sed -i 's/ro.vendor.nfc.dispatch_optim=[^*]*/ro.vendor.nfc.dispatch_optim=2/' "$STOCK_EXTRACT_DIR/odm/etc/build.prop"
 
-# 移植lhdc自适应采样率
-echo "移植lhdc自适应采样率"
-sed -i 's/bluetooth.profile.hap.client.enabled=[^*]*/bluetooth.profile.hap.client.enabled=true/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
-sed -i ''"$(sed -n '/ro.miui.has_gmscore/=' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop)"'a persist.vendor.qcom.bluetooth.aptxadaptiver2_2_support=true' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
+# 启用 APTX Adaptive 2.2 支持
+echo "启用 APTX Adaptive 2.2 支持"
+sed -i '$a \
+# Enable APTX Adaptive 2.2 Support \
+persist.vendor.qcom.bluetooth.aptxadaptiver2_2_support=true' "$MIGRATION_EXTRACT_DIR/system_ext/etc/build.prop"
+
+# 跳过Bluetooth LEAudio Whitelist
+echo "跳过Bluetooth LEAudio Whitelist"
+sed -i '$a \
+# Enable LEAudio Skip Whitelist \
+persist.bluetooth.enable_dual_mode_audio=true ' "$MIGRATION_EXTRACT_DIR/system_ext/etc/build.prop"
+
+# 解锁扬声器清理
+echo "解锁扬声器清理"
+sed -i '/persist\.vendor\.ssr\.restart_level=ALL_ENABLE$/a\
+# Enable Speaker Cleannng\
+ro.vendor.audio.clean_speaker=true' "$STOCK_EXTRACT_DIR/odm/etc/build.prop"
 
 # ZRAM 1:1调整
 echo "zram 1:1调整"
@@ -509,24 +537,25 @@ sed -i '/ro\.odm\.build\.version\.sdk=33/a ro.odm.build.media_performance_class=
 
 # 优化核心分配
 echo "优化核心分配"
+sed -i 's/dalvik.vm.boot-dex2oat-cpu-set=[^*]*/dalvik.vm.boot-dex2oat-cpu-set=0,1,2,3,4,5,6,7/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
+sed -i 's/dalvik.vm.background-dex2oat-cpu-set=[^*]*/dalvik.vm.background-dex2oat-cpu-set=0,1,2,3,4,5,6,7/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
+
 sed -i 's/ro.miui.affinity.sfui=[^*]*/ro.miui.affinity.sfui=0-2/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
 sed -i 's/ro.miui.affinity.sfre=[^*]*/ro.miui.affinity.sfre=0-2/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
 sed -i 's/persist.sys.dexpreload.other_cores=[^*]*/persist.sys.dexpreload.other_cores=0-2/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
 sed -i 's/persist.sys.dexpreload.cpu_cores=[^*]*/persist.sys.dexpreload.cpu_cores=0-7/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
 sed -i 's/persist.sys.dexpreload.big_prime_cores=[^*]*/persist.sys.dexpreload.big_prime_cores=3-7/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
 sed -i '$a \
-# East added for Xiaomi HyperOS Core allocation \
+# Wanderlust added for Xiaomi HyperOS Core allocation \
 persist.vendor.display.miui.composer_boost=3-7 \
 persist.sys.miui_animator_sched.big_prime_cores=3-7 \
 persist.sys.miui_animator_sched.sched_threads=2 \
 persist.sys.miui_animator_sched.bigcores=3-7' "$MIGRATION_EXTRACT_DIR/product/etc/build.prop"
 
-
 # 常规修改
 echo "常规修改"
 build_time=$(date) && build_utc=$(date -d "$build_time" +%s)
-sudo sed -i 's/ro.build.user=.*/ro.build.user=East/' "$MIGRATION_EXTRACT_DIR"/system/system/build.prop
-sudo sed -i 's/ro.build.host=.*/ro.build.host=East-AutoBuildServer/' "$MIGRATION_EXTRACT_DIR"/system/system/build.prop
+sudo sed -i 's/ro.build.user=.*/ro.build.user=Wanderlust/' "$MIGRATION_EXTRACT_DIR"/system/system/build.prop
 sudo sed -i 's/ro.system.build.date=.*/ro.system.build.date='"$build_time"'/' "$MIGRATION_EXTRACT_DIR"/system/system/build.prop
 sudo sed -i 's/ro.system.build.date.utc=.*/ro.system.build.date.utc='"$build_utc"'/' "$MIGRATION_EXTRACT_DIR"/system/system/build.prop
 sudo sed -i 's/ro.build.date=.*/ro.build.date='"$build_time"'/' "$MIGRATION_EXTRACT_DIR"/system/system/build.prop
@@ -547,17 +576,17 @@ sudo sed -i 's/ro.odm.build.date.utc=.*/ro.odm.build.date.utc='"$build_utc"'/' "
 
 # 自定义版本号
 echo "自定义版本号"
-sed -i 's/ro.mi.os.version.incremental=[^*]*/ro.mi.os.version.incremental=OS3.0.0.18.WMACNXM/' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
+sed -i 's/ro.mi.os.version.incremental=[^*]*/ro.mi.os.version.incremental=OS3.0.0.18.2.WMACNXM/' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
 sed -i 's/ro.product.mod_device=[^*]*/ro.product.mod_device=ishtar/' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
 sed -i 's/xuanyuan/ishtar/g' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
-sed -i 's/OS3.0.0.18.WOACNXM/OS3.0.0.18.WMACNXM/g' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
-sed -i 's/OS3.0.0.18.WOACNXM/OS3.0.0.18.WMACNXM/g' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
-sed -i 's/OS3.0.0.18.WOACNXM/OS3.0.0.18.WMACNXM/g' "$MIGRATION_EXTRACT_DIR"/system/system/build.prop
-sed -i 's/OS3.0.0.18.WOACNXM/OS3.0.0.18.WMACNXM/g' "$MIGRATION_EXTRACT_DIR"/system_ext/etc/build.prop
-sed -i 's/OS2.0.205.0.WMACNXM/OS3.0.0.18.WMACNXM/g' "$STOCK_EXTRACT_DIR"/system_dlkm/etc/build.prop
-sed -i 's/OS2.0.205.0.WMACNXM/OS3.0.0.18.WMACNXM/g' "$STOCK_EXTRACT_DIR"/vendor_dlkm/etc/build.prop
-sed -i 's/OS2.0.205.0.WMACNXM/OS3.0.0.18.WMACNXM/g' "$STOCK_EXTRACT_DIR"/vendor/build.prop
-sed -i 's/OS2.0.205.0.WMACNXM/OS3.0.0.18.WMACNXM/g' "$STOCK_EXTRACT_DIR"/odm/etc/build.prop
+sed -i 's/OS3.0.0.18.WOACNXM/OS3.0.0.18.2.WMACNXM/g' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
+sed -i 's/OS3.0.0.18.WOACNXM/OS3.0.0.18.2.WMACNXM/g' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
+sed -i 's/OS3.0.0.18.WOACNXM/OS3.0.0.18.2.WMACNXM/g' "$MIGRATION_EXTRACT_DIR"/system/system/build.prop
+sed -i 's/OS3.0.0.18.WOACNXM/OS3.0.0.18.2.WMACNXM/g' "$MIGRATION_EXTRACT_DIR"/system_ext/etc/build.prop
+sed -i 's/OS2.0.205.0.WMACNXM/OS3.0.0.18.2.WMACNXM/g' "$STOCK_EXTRACT_DIR"/system_dlkm/etc/build.prop
+sed -i 's/OS2.0.205.0.WMACNXM/OS3.0.0.18.2.WMACNXM/g' "$STOCK_EXTRACT_DIR"/vendor_dlkm/etc/build.prop
+sed -i 's/OS2.0.205.0.WMACNXM/OS3.0.0.18.2.WMACNXM/g' "$STOCK_EXTRACT_DIR"/vendor/build.prop
+sed -i 's/OS2.0.205.0.WMACNXM/OS3.0.0.18.2.WMACNXM/g' "$STOCK_EXTRACT_DIR"/odm/etc/build.prop
 
 # 解压刷机脚本
 unzip -o -q ./tools/flashscript/flashtools.zip -d ./output
@@ -629,7 +658,7 @@ system_dlkm_size=$(stat --format="%s" "$STOCK_EXTRACT_DIR"/system_dlkm.img)
 ./tools/binary/zstd -9 -f ./output/super.img -o ./output/super.zst --rm
 
 # 打包zip文件
-7z a ./zip/ishtar-ota_full-OS3.0.0.18.WMACNXM-user-16.0.zip ./output/*
-MD5_HASH=$(md5sum "./zip/ishtar-ota_full-OS3.0.0.18.WMACNXM-user-16.0.zip" | awk '{ print $1 }' | cut -c 1-10)
-mv "./zip/ishtar-ota_full-OS3.0.0.18.WMACNXM-user-16.0.zip" "./zip/ishtar-ota_full-OS3.0.0.18.WMACNXM-user-16.0-$MD5_HASH.zip"
+7z a ./zip/ishtar-ota_full-OS3.0.0.18.2.WMACNXM-user-16.0.zip ./output/*
+MD5_HASH=$(md5sum "./zip/ishtar-ota_full-OS3.0.0.18.2.WMACNXM-user-16.0.zip" | awk '{ print $1 }' | cut -c 1-10)
+mv "./zip/ishtar-ota_full-OS3.0.0.18.2.WMACNXM-user-16.0.zip" "./zip/ishtar-ota_full-OS3.0.0.18.2.WMACNXM-user-16.0-$MD5_HASH.zip"
 
