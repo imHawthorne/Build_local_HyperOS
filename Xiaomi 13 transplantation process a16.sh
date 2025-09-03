@@ -248,6 +248,10 @@ echo "修复蓝牙报错"
 7z x ./device_files/common_files/fix-bluetooth-err-patch1.7z -o"$MIGRATION_EXTRACT_DIR/system/system"
 7z x ./device_files/common_files/fix-bluetooth-err-patch2.7z -o"$MIGRATION_EXTRACT_DIR/system_ext"
 
+# 修复三方应用通话录音爆炸
+echo "修复三方应用通话录音爆炸"
+7z x ./device_files/common_files/MiuiAudioMonitor.7z -o"$MIGRATION_EXTRACT_DIR/system_ext"
+
 # 恢复官方壁纸
 echo "恢复官方壁纸"
 rm "$MIGRATION_EXTRACT_DIR"/product/media/wallpaper/wallpaper_BG.jpg \
@@ -493,17 +497,17 @@ echo "优化核心分配"
 sed -i 's/dalvik.vm.boot-dex2oat-cpu-set=[^*]*/dalvik.vm.boot-dex2oat-cpu-set=0,1,2,3,4,5,6,7/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
 sed -i 's/dalvik.vm.background-dex2oat-cpu-set=[^*]*/dalvik.vm.background-dex2oat-cpu-set=0,1,2,3,4,5,6,7/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
 
-sed -i 's/ro.miui.affinity.sfui=[^*]*/ro.miui.affinity.sfui=0-2/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
-sed -i 's/ro.miui.affinity.sfre=[^*]*/ro.miui.affinity.sfre=0-2/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
+sed -i 's/ro.miui.affinity.sfui=[^*]*/ro.miui.affinity.sfui=3-6/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
+sed -i 's/ro.miui.affinity.sfre=[^*]*/ro.miui.affinity.sfre=3-6/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
 sed -i 's/persist.sys.dexpreload.other_cores=[^*]*/persist.sys.dexpreload.other_cores=0-2/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
 sed -i 's/persist.sys.dexpreload.cpu_cores=[^*]*/persist.sys.dexpreload.cpu_cores=0-7/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
-sed -i 's/persist.sys.dexpreload.big_prime_cores=[^*]*/persist.sys.dexpreload.big_prime_cores=3-7/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
+sed -i 's/persist.sys.dexpreload.big_prime_cores=[^*]*/persist.sys.dexpreload.big_prime_cores=3-6/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
 sed -i '$a \
 # Wanderlust added for Xiaomi HyperOS Core allocation \
 persist.vendor.display.miui.composer_boost=3-7 \
-persist.sys.miui_animator_sched.big_prime_cores=3-7 \
+persist.sys.miui_animator_sched.big_prime_cores=7 \
 persist.sys.miui_animator_sched.sched_threads=2 \
-persist.sys.miui_animator_sched.bigcores=3-7' "$MIGRATION_EXTRACT_DIR/product/etc/build.prop"
+persist.sys.miui_animator_sched.bigcores=3-6' "$MIGRATION_EXTRACT_DIR/product/etc/build.prop"
 
 # 常规修改
 echo "常规修改"
@@ -529,17 +533,17 @@ sudo sed -i 's/ro.odm.build.date.utc=.*/ro.odm.build.date.utc='"$build_utc"'/' "
 
 # 自定义版本号
 echo "自定义版本号"
-sed -i 's/ro.mi.os.version.incremental=[^*]*/ro.mi.os.version.incremental=OS3.0.0.18.2.WMCCNXM/' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
+sed -i 's/ro.mi.os.version.incremental=[^*]*/ro.mi.os.version.incremental=OS3.0.0.18.3.WMCCNXM/' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
 sed -i 's/ro.product.mod_device=[^*]*/ro.product.mod_device=fuxi/' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
 sed -i 's/xuanyuan/fuxi/g' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
-sed -i 's/OS3.0.0.18.WOACNXM/OS3.0.0.18.2.WMCCNXM/g' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
-sed -i 's/OS3.0.0.18.WOACNXM/OS3.0.0.18.2.WMCCNXM/g' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
-sed -i 's/OS3.0.0.18.WOACNXM/OS3.0.0.18.2.WMCCNXM/g' "$MIGRATION_EXTRACT_DIR"/system/system/build.prop
-sed -i 's/OS3.0.0.18.WOACNXM/OS3.0.0.18.2.WMCCNXM/g' "$MIGRATION_EXTRACT_DIR"/system_ext/etc/build.prop
-sed -i 's/OS2.0.207.0.VMCCNXM/OS3.0.0.18.2.WMCCNXM/g' "$STOCK_EXTRACT_DIR"/system_dlkm/etc/build.prop
-sed -i 's/OS2.0.207.0.VMCCNXM/OS3.0.0.18.2.WMCCNXM/g' "$STOCK_EXTRACT_DIR"/vendor_dlkm/etc/build.prop
-sed -i 's/OS2.0.207.0.VMCCNXM/OS3.0.0.18.2.WMCCNXM/g' "$STOCK_EXTRACT_DIR"/vendor/build.prop
-sed -i 's/OS2.0.207.0.VMCCNXM/OS3.0.0.18.2.WMCCNXM/g' "$STOCK_EXTRACT_DIR"/odm/etc/build.prop
+sed -i 's/OS3.0.0.18.WOACNXM/OS3.0.0.18.3.WMCCNXM/g' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
+sed -i 's/OS3.0.0.18.WOACNXM/OS3.0.0.18.3.WMCCNXM/g' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
+sed -i 's/OS3.0.0.18.WOACNXM/OS3.0.0.18.3.WMCCNXM/g' "$MIGRATION_EXTRACT_DIR"/system/system/build.prop
+sed -i 's/OS3.0.0.18.WOACNXM/OS3.0.0.18.3.WMCCNXM/g' "$MIGRATION_EXTRACT_DIR"/system_ext/etc/build.prop
+sed -i 's/OS2.0.207.0.VMCCNXM/OS3.0.0.18.3.WMCCNXM/g' "$STOCK_EXTRACT_DIR"/system_dlkm/etc/build.prop
+sed -i 's/OS2.0.207.0.VMCCNXM/OS3.0.0.18.3.WMCCNXM/g' "$STOCK_EXTRACT_DIR"/vendor_dlkm/etc/build.prop
+sed -i 's/OS2.0.207.0.VMCCNXM/OS3.0.0.18.3.WMCCNXM/g' "$STOCK_EXTRACT_DIR"/vendor/build.prop
+sed -i 's/OS2.0.207.0.VMCCNXM/OS3.0.0.18.3.WMCCNXM/g' "$STOCK_EXTRACT_DIR"/odm/etc/build.prop
 
 # 解压刷机脚本
 unzip -o -q ./tools/flashscript/flashtools.zip -d ./output
@@ -611,8 +615,8 @@ system_dlkm_size=$(stat --format="%s" "$STOCK_EXTRACT_DIR"/system_dlkm.img)
 ./tools/binary/zstd -9 -f ./output/super.img -o ./output/super.zst --rm
 
 # 打包zip文件
-7z a ./zip/fuxi-ota_full-OS3.0.0.18.2.WMCCNXM-user-15.0.zip ./output/*
-MD5_HASH=$(md5sum "./zip/fuxi-ota_full-OS3.0.0.18.2.WMCCNXM-user-15.0.zip" | awk '{ print $1 }' | cut -c 1-10)
-mv "./zip/fuxi-ota_full-OS3.0.0.18.2.WMCCNXM-user-15.0.zip" "./zip/fuxi-ota_full-OS3.0.0.18.2.WMCCNXM-user-15.0-$MD5_HASH.zip"
+7z a ./zip/fuxi-ota_full-OS3.0.0.18.3.WMCCNXM-user-15.0.zip ./output/*
+MD5_HASH=$(md5sum "./zip/fuxi-ota_full-OS3.0.0.18.3.WMCCNXM-user-15.0.zip" | awk '{ print $1 }' | cut -c 1-10)
+mv "./zip/fuxi-ota_full-OS3.0.0.18.3.WMCCNXM-user-15.0.zip" "./zip/fuxi-ota_full-OS3.0.0.18.3.WMCCNXM-user-15.0-$MD5_HASH.zip"
 
 rm -rf "Migration Package" "Stock Package" output
