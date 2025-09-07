@@ -48,7 +48,7 @@ done
 echo "所有镜像文件已提取完成！"
 
 # 解压移植包的 ZIP 文件
-MIGRATION_ZIP_FILE="./downloads/xuanyuan-ota_full-OS3.0.0.18.WOACNXM-user-16.0-e46723040a.zip"
+MIGRATION_ZIP_FILE="./downloads/xuanyuan-ota_full-OS3.0.0.24.WOACNXM-user-16.0-527e66a620.zip"
 MIGRATION_EXTRACT_DIR="./Migration Package"
 
 ./tools/binary/payload_extract -i "$MIGRATION_ZIP_FILE" -t zip -o "$MIGRATION_EXTRACT_DIR" -x
@@ -524,6 +524,21 @@ sed -i '/persist\.vendor\.ssr\.restart_level=ALL_ENABLE$/a\
 # Enable Speaker Cleannng\
 ro.vendor.audio.clean_speaker=true' "$STOCK_EXTRACT_DIR/odm/etc/build.prop"
 
+# 修复重启掉指纹
+echo "修改services.jar"
+appfile=$(find "$MIGRATION_EXTRACT_DIR" -type f -name "services.jar")
+java -jar ./tools/jar/APKEditor.jar d -f -i "$appfile" -o "./tmp/services" > /dev/null 2>&1
+
+#重启掉指纹
+FingerprintProvider=$(find "./tmp/services" -type f -name "FingerprintProvider.smali")
+target_line=$(grep -n "settings_fingerprint.xml success" "$FingerprintProvider" | head -n 1 | cut -d: -f1)
+delete_line=$(awk -v line="$target_line" 'NR > line && /delete/ {print NR; exit}' "$FingerprintProvider")
+sed -i "${delete_line}d" "$FingerprintProvider"
+
+echo "打包services.jar"
+java -jar ./tools/jar/APKEditor.jar b -f -i "./tmp/services" -o "$appfile" > /dev/null 2>&1
+echo "完成"
+
 # ZRAM 1:1调整
 echo "zram 1:1调整"
 mkdir -p ./tmp
@@ -582,17 +597,17 @@ sudo sed -i 's/ro.odm.build.date.utc=.*/ro.odm.build.date.utc='"$build_utc"'/' "
 
 # 自定义版本号
 echo "自定义版本号"
-sed -i 's/ro.mi.os.version.incremental=[^*]*/ro.mi.os.version.incremental=OS3.0.0.18.3.WMBCNXM/' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
+sed -i 's/ro.mi.os.version.incremental=[^*]*/ro.mi.os.version.incremental=OS3.0.0.24.1.WMBCNXM/' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
 sed -i 's/ro.product.mod_device=[^*]*/ro.product.mod_device=nuwa/' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
 sed -i 's/xuanyuan/nuwa/g' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
-sed -i 's/OS3.0.0.18.WOACNXM/OS3.0.0.18.3.WMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
-sed -i 's/OS3.0.0.18.WOACNXM/OS3.0.0.18.3.WMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
-sed -i 's/OS3.0.0.18.WOACNXM/OS3.0.0.18.3.WMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/system/system/build.prop
-sed -i 's/OS3.0.0.18.WOACNXM/OS3.0.0.18.3.WMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/system_ext/etc/build.prop
-sed -i 's/OS2.0.211.0.VMBCNXM/OS3.0.0.18.3.WMBCNXM/g' "$STOCK_EXTRACT_DIR"/system_dlkm/etc/build.prop
-sed -i 's/OS2.0.211.0.VMBCNXM/OS3.0.0.18.3.WMBCNXM/g' "$STOCK_EXTRACT_DIR"/vendor_dlkm/etc/build.prop
-sed -i 's/OS2.0.211.0.VMBCNXM/OS3.0.0.18.3.WMBCNXM/g' "$STOCK_EXTRACT_DIR"/vendor/build.prop
-sed -i 's/OS2.0.211.0.VMBCNXM/OS3.0.0.18.3.WMBCNXM/g' "$STOCK_EXTRACT_DIR"/odm/etc/build.prop
+sed -i 's/OS3.0.0.24.WOACNXM/OS3.0.0.24.1.WMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
+sed -i 's/OS3.0.0.24.WOACNXM/OS3.0.0.24.1.WMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
+sed -i 's/OS3.0.0.24.WOACNXM/OS3.0.0.24.1.WMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/system/system/build.prop
+sed -i 's/OS3.0.0.24.WOACNXM/OS3.0.0.24.1.WMBCNXM/g' "$MIGRATION_EXTRACT_DIR"/system_ext/etc/build.prop
+sed -i 's/OS2.0.211.0.VMBCNXM/OS3.0.0.24.1.WMBCNXM/g' "$STOCK_EXTRACT_DIR"/system_dlkm/etc/build.prop
+sed -i 's/OS2.0.211.0.VMBCNXM/OS3.0.0.24.1.WMBCNXM/g' "$STOCK_EXTRACT_DIR"/vendor_dlkm/etc/build.prop
+sed -i 's/OS2.0.211.0.VMBCNXM/OS3.0.0.24.1.WMBCNXM/g' "$STOCK_EXTRACT_DIR"/vendor/build.prop
+sed -i 's/OS2.0.211.0.VMBCNXM/OS3.0.0.24.1.WMBCNXM/g' "$STOCK_EXTRACT_DIR"/odm/etc/build.prop
 
 # 解压刷机脚本
 unzip -o -q ./tools/flashscript/flashtools.zip -d ./output
@@ -660,8 +675,8 @@ system_dlkm_size=$(stat --format="%s" "$STOCK_EXTRACT_DIR"/system_dlkm.img)
 ./tools/binary/zstd -9 -f ./output/super.img -o ./output/super.zst --rm
 
 # 打包zip文件
-7z a ./zip/nuwa-ota_full-OS3.0.0.18.3.WMBCNXM-user-16.0.zip ./output/*
-MD5_HASH=$(md5sum "./zip/nuwa-ota_full-OS3.0.0.18.3.WMBCNXM-user-16.0.zip" | awk '{ print $1 }' | cut -c 1-10)
-mv "./zip/nuwa-ota_full-OS3.0.0.18.3.WMBCNXM-user-16.0.zip" "./zip/nuwa-ota_full-OS3.0.0.18.3.WMBCNXM-user-16.0-$MD5_HASH.zip"
+7z a ./zip/nuwa-ota_full-OS3.0.0.24.1.WMBCNXM-user-16.0.zip ./output/*
+MD5_HASH=$(md5sum "./zip/nuwa-ota_full-OS3.0.0.24.1.WMBCNXM-user-16.0.zip" | awk '{ print $1 }' | cut -c 1-10)
+mv "./zip/nuwa-ota_full-OS3.0.0.24.1.WMBCNXM-user-16.0.zip" "./zip/nuwa-ota_full-OS3.0.0.24.1.WMBCNXM-user-16.0-$MD5_HASH.zip"
 
 rm -rf "Migration Package" "Stock Package" output
