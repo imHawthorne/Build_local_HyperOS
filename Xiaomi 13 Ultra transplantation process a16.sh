@@ -22,7 +22,7 @@ for file in "${files[@]}"; do
 done
 
 # 解压指定的 ZIP 文件
-STOCK_ZIP_FILE="./downloads/ishtar-ota_full-OS2.0.205.0.VMACNXM-user-15.0-c46a333251.zip"
+STOCK_ZIP_FILE="./downloads/ishtar-ota_full-OS2.0.206.0.VMACNXM-user-15.0-c0e39c2592.zip"
 STOCK_EXTRACT_DIR="./Stock Package"
 
 ./tools/binary/payload_extract -i "$STOCK_ZIP_FILE" -t zip -o "$STOCK_EXTRACT_DIR" -x
@@ -47,7 +47,7 @@ done
 echo "所有镜像文件已提取完成！"
 
 # 解压移植包的 ZIP 文件
-MIGRATION_ZIP_FILE="./downloads/xuanyuan-ota_full-OS3.0.0.24.WOACNXM-user-16.0-527e66a620.zip"
+MIGRATION_ZIP_FILE="./downloads/xuanyuan-ota_full-OS3.0.0.26.WOACNXM-user-16.0-0161bb91d8.zip"
 MIGRATION_EXTRACT_DIR="./Migration Package"
 
 ./tools/binary/payload_extract -i "$MIGRATION_ZIP_FILE" -t zip -o "$MIGRATION_EXTRACT_DIR" -x
@@ -443,6 +443,12 @@ sed -i '$a \
 # Enable A2DP Samplerate \
 persist.vendor.bt.a2dp.samplerate.supported=true' "$MIGRATION_EXTRACT_DIR/system_ext/etc/build.prop"
 
+# 修复蓝牙耳机沉浸声 By ZnCl2
+echo "修复蓝牙耳机沉浸声"
+sed -i '$a \
+# Fix the immersive sound of the Bluetooth Headset \
+ro.audio.stereo_spatialization_enabled=true' "$MIGRATION_EXTRACT_DIR/system_ext/etc/build.prop"
+
 # 替换Overlay
 echo "替换Overlay"
 mv -f "$STOCK_EXTRACT_DIR"/product/overlay/DevicesAndroidOverlay.apk "$MIGRATION_EXTRACT_DIR"/product/overlay
@@ -601,17 +607,17 @@ sudo sed -i 's/ro.odm.build.date.utc=.*/ro.odm.build.date.utc='"$build_utc"'/' "
 
 # 自定义版本号
 echo "自定义版本号"
-sed -i 's/ro.mi.os.version.incremental=[^*]*/ro.mi.os.version.incremental=OS3.0.0.24.1.WMACNXM/' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
+sed -i 's/ro.mi.os.version.incremental=[^*]*/ro.mi.os.version.incremental=OS3.0.0.26.WMACNXM/' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
 sed -i 's/ro.product.mod_device=[^*]*/ro.product.mod_device=ishtar/' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
 sed -i 's/xuanyuan/ishtar/g' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
-sed -i 's/OS3.0.0.24.WOACNXM/OS3.0.0.24.1.WMACNXM/g' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
-sed -i 's/OS3.0.0.24.WOACNXM/OS3.0.0.24.1.WMACNXM/g' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
-sed -i 's/OS3.0.0.24.WOACNXM/OS3.0.0.24.1.WMACNXM/g' "$MIGRATION_EXTRACT_DIR"/system/system/build.prop
-sed -i 's/OS3.0.0.24.WOACNXM/OS3.0.0.24.1.WMACNXM/g' "$MIGRATION_EXTRACT_DIR"/system_ext/etc/build.prop
-sed -i 's/OS2.0.205.0.WMACNXM/OS3.0.0.24.1.WMACNXM/g' "$STOCK_EXTRACT_DIR"/system_dlkm/etc/build.prop
-sed -i 's/OS2.0.205.0.WMACNXM/OS3.0.0.24.1.WMACNXM/g' "$STOCK_EXTRACT_DIR"/vendor_dlkm/etc/build.prop
-sed -i 's/OS2.0.205.0.WMACNXM/OS3.0.0.24.1.WMACNXM/g' "$STOCK_EXTRACT_DIR"/vendor/build.prop
-sed -i 's/OS2.0.205.0.WMACNXM/OS3.0.0.24.1.WMACNXM/g' "$STOCK_EXTRACT_DIR"/odm/etc/build.prop
+sed -i 's/OS3.0.0.26.WOACNXM/OS3.0.0.26.WMACNXM/g' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
+sed -i 's/OS3.0.0.26.WOACNXM/OS3.0.0.26.WMACNXM/g' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
+sed -i 's/OS3.0.0.26.WOACNXM/OS3.0.0.26.WMACNXM/g' "$MIGRATION_EXTRACT_DIR"/system/system/build.prop
+sed -i 's/OS3.0.0.26.WOACNXM/OS3.0.0.26.WMACNXM/g' "$MIGRATION_EXTRACT_DIR"/system_ext/etc/build.prop
+sed -i 's/OS2.0.206.0.WMACNXM/OS3.0.0.26.WMACNXM/g' "$STOCK_EXTRACT_DIR"/system_dlkm/etc/build.prop
+sed -i 's/OS2.0.206.0.WMACNXM/OS3.0.0.26.WMACNXM/g' "$STOCK_EXTRACT_DIR"/vendor_dlkm/etc/build.prop
+sed -i 's/OS2.0.206.0.WMACNXM/OS3.0.0.26.WMACNXM/g' "$STOCK_EXTRACT_DIR"/vendor/build.prop
+sed -i 's/OS2.0.206.0.WMACNXM/OS3.0.0.26.WMACNXM/g' "$STOCK_EXTRACT_DIR"/odm/etc/build.prop
 
 # 解压刷机脚本
 unzip -o -q ./tools/flashscript/flashtools.zip -d ./output
@@ -683,8 +689,8 @@ system_dlkm_size=$(stat --format="%s" "$STOCK_EXTRACT_DIR"/system_dlkm.img)
 ./tools/binary/zstd -9 -f ./output/super.img -o ./output/super.zst --rm
 
 # 打包zip文件
-7z a ./zip/ishtar-ota_full-OS3.0.0.24.1.WMACNXM-user-16.0.zip ./output/*
-MD5_HASH=$(md5sum "./zip/ishtar-ota_full-OS3.0.0.24.1.WMACNXM-user-16.0.zip" | awk '{ print $1 }' | cut -c 1-10)
-mv "./zip/ishtar-ota_full-OS3.0.0.24.1.WMACNXM-user-16.0.zip" "./zip/ishtar-ota_full-OS3.0.0.24.1.WMACNXM-user-16.0-$MD5_HASH.zip"
+7z a ./zip/ishtar-ota_full-OS3.0.0.26.WMACNXM-user-16.0.zip ./output/*
+MD5_HASH=$(md5sum "./zip/ishtar-ota_full-OS3.0.0.26.WMACNXM-user-16.0.zip" | awk '{ print $1 }' | cut -c 1-10)
+mv "./zip/ishtar-ota_full-OS3.0.0.26.WMACNXM-user-16.0.zip" "./zip/ishtar-ota_full-OS3.0.0.26.WMACNXM-user-16.0-$MD5_HASH.zip"
 
 rm -rf "Migration Package" "Stock Package" output
