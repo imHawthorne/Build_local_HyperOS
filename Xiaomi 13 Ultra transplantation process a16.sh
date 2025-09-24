@@ -7,13 +7,12 @@ sudo timedatectl set-timezone Asia/Shanghai
 # 要更改权限的文件列表
 echo "为自动构建需要运行的binary设置权限..."
 files=(
-    "./tools/binary/zstd"
-    "./tools/binary/payload_extract"
     "./tools/binary/extract.erofs"
-    "./tools/binary/vbmeta-disable-verification"
-    "./tools/binary/mkfs.erofs"
     "./tools/binary/lpmake"
-    "./tools/binary/imgextractorLinux"
+    "./tools/binary/magiskboot"
+    "./tools/binary/mkfs.erofs"
+    "./tools/binary/payload_extract"
+    "./tools/binary/zstd"
 )
 
 # 循环更改每个文件的权限
@@ -223,8 +222,8 @@ sed -i 's/<bool name="support_ota_validate">true<\/bool>/<bool name="support_ota
 echo "解锁widevine L1证书在线更新"
 sed -i 's/<integer name="support_widevine_l1">1<\/integer>/<integer name="support_widevine_l1">2<\/integer>/' "$MIGRATION_EXTRACT_DIR/product/etc/device_features/ishtar.xml"
 
-# 修复自带相机
-echo "修复自带相机闪退"
+# 添加修改版相机6.0.000250.0
+echo "添加修改版相机"
 rm -rf "$MIGRATION_EXTRACT_DIR/product/priv-app/MiuiCamera/"
 7z x ./device_files/xiaomi_sm8550_files/MiuiCamera.7z -o"$MIGRATION_EXTRACT_DIR/product/priv-app/MiuiCamera"
 
@@ -266,10 +265,6 @@ rm "$MIGRATION_EXTRACT_DIR"/product/media/wallpaper/wallpaper_BG.jpg \
 cp -f "$STOCK_EXTRACT_DIR"/product/media/wallpaper/wallpaper01.jpg "$MIGRATION_EXTRACT_DIR"/product/media/wallpaper
 cp -f "$STOCK_EXTRACT_DIR"/product/media/wallpaper/wallpaper13.jpg "$MIGRATION_EXTRACT_DIR"/product/media/wallpaper
 cp -f "$STOCK_EXTRACT_DIR"/product/media/wallpaper/wallpaper01.jpg "$MIGRATION_EXTRACT_DIR"/product/media/theme/default/lock_wallpaper
-
-# 修复NFC
-# echo "修复NFC"
-# cp -rf "$STOCK_EXTRACT_DIR/product/pangu/system/app/NQNfcNci" "$MIGRATION_EXTRACT_DIR/product/pangu/system/app/NQNfcNci"
 
 # 修复基带未知
 echo "修复基带未知"
@@ -456,7 +451,6 @@ mv -f "$STOCK_EXTRACT_DIR"/product/overlay/DevicesOverlay.apk "$MIGRATION_EXTRAC
 mv -f "$STOCK_EXTRACT_DIR"/product/overlay/MiuiFrameworkResOverlay.apk "$MIGRATION_EXTRACT_DIR"/product/overlay
 mv -f "$STOCK_EXTRACT_DIR"/product/overlay/SettingsRroDeviceHideStatusBarOverlay.apk "$MIGRATION_EXTRACT_DIR"/product/overlay
 mv -f "$STOCK_EXTRACT_DIR"/product/overlay/SettingsRroDeviceTypeOverlay.apk "$MIGRATION_EXTRACT_DIR"/product/overlay
-# mv -f "$STOCK_EXTRACT_DIR"/product/overlay/MiuiCameraOverlayLeicaed "$MIGRATION_EXTRACT_DIR"/product/overlay
 mv -f "$STOCK_EXTRACT_DIR"/product/overlay/MiuiFrameworkTelephonyResOverlay.apk "$MIGRATION_EXTRACT_DIR"/product/overlay
 
 # 去除无用的屏幕刘海切换
@@ -489,10 +483,6 @@ sudo rm -rf ./mod
 # 恢复静止刷新率下限为1Hz
 echo "恢复静止刷新率下限为1Hz"
 sed -i 's/ro.vendor.display.primary_idle_refresh_rate=[^*]*/ro.vendor.display.primary_idle_refresh_rate=60,1:528/' "$STOCK_EXTRACT_DIR/odm/etc/build.prop"
-
-# 更新Vulkan 1.4 By ZnCl2
-# echo "解锁Vulkan 1.4"
-# pv device_files/xiaomi_sm8550_files/Vulkan1.4-for-nuwa.zip | bsdtar -xvf - -C "$STOCK_EXTRACT_DIR/vendor"
 
 # 启用vulkan渲染
 echo "启用vulkan渲染"

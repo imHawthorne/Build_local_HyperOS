@@ -7,13 +7,12 @@ sudo timedatectl set-timezone Asia/Shanghai
 # 要更改权限的文件列表
 echo "为自动构建需要运行的binary设置权限..."
 files=(
-    "./tools/binary/zstd"
-    "./tools/binary/payload_extract"
     "./tools/binary/extract.erofs"
-    "./tools/binary/vbmeta-disable-verification"
-    "./tools/binary/mkfs.erofs"
     "./tools/binary/lpmake"
-    "./tools/binary/imgextractorLinux"
+    "./tools/binary/magiskboot"
+    "./tools/binary/mkfs.erofs"
+    "./tools/binary/payload_extract"
+    "./tools/binary/zstd"
 )
 
 # 循环更改每个文件的权限
@@ -223,8 +222,8 @@ sed -i 's/<bool name="support_ota_validate">true<\/bool>/<bool name="support_ota
 echo "解锁widevine L1证书在线更新"
 sed -i 's/<integer name="support_widevine_l1">1<\/integer>/<integer name="support_widevine_l1">2<\/integer>/' "$MIGRATION_EXTRACT_DIR/product/etc/device_features/fuxi.xml"
 
-# 修复自带相机
-echo "修复自带相机闪退"
+# 添加修改版相机6.0.000250.0
+echo "添加修改版相机"
 rm -rf "$MIGRATION_EXTRACT_DIR/product/priv-app/MiuiCamera/"
 7z x ./device_files/xiaomi_sm8550_files/MiuiCamera.7z -o"$MIGRATION_EXTRACT_DIR/product/priv-app/MiuiCamera"
 
@@ -282,15 +281,6 @@ echo "修复基带未知"
 echo "去除国区谷歌商店限制"
 sed -i -e '/<feature name="cn.google.services" \/>/d' \
     -e '/<feature name="com.google.android.feature.services_updater" \/>/d' "$MIGRATION_EXTRACT_DIR"/product/etc/permissions/cn.google.services.xml
-
-# 解锁全屏aod
-# echo "解锁全屏aod"
-# sed -i '/<bool name="is_aod_need_grayscale">false<\/bool>/a \
-#     <!--whether the device supports aod fullscreen mode--> \
-#     <bool name="support_aod_fullscreen">true</bool> \
-#     <!-- The fps of aon_screen_off--> \
-#     <integer name="aon_screen_off_fps">0</integer>' "$MIGRATION_EXTRACT_DIR"/product/etc/device_features/fuxi.xml
-# sed -i ''"$(sed -n '/ro.vendor.display.primary_idle_refresh_rate/=' "$STOCK_EXTRACT_DIR/odm/etc/build.prop")"'a ro.vendor.mi_sf.aod_mode_ddic_refresh_rate=1' "$STOCK_EXTRACT_DIR/odm/etc/build.prop"
 
 # 解锁节律护眼模式
 echo "解锁节律护眼支持"
@@ -436,7 +426,6 @@ mv -f "$STOCK_EXTRACT_DIR"/product/overlay/DevicesOverlay.apk "$MIGRATION_EXTRAC
 mv -f "$STOCK_EXTRACT_DIR"/product/overlay/MiuiFrameworkResOverlay.apk "$MIGRATION_EXTRACT_DIR"/product/overlay
 mv -f "$STOCK_EXTRACT_DIR"/product/overlay/SettingsRroDeviceHideStatusBarOverlay.apk "$MIGRATION_EXTRACT_DIR"/product/overlay
 mv -f "$STOCK_EXTRACT_DIR"/product/overlay/SettingsRroDeviceTypeOverlay.apk "$MIGRATION_EXTRACT_DIR"/product/overlay
-# mv -f "$STOCK_EXTRACT_DIR"/product/overlay/MiuiCameraOverlayLeicaed "$MIGRATION_EXTRACT_DIR"/product/overlay
 mv -f "$STOCK_EXTRACT_DIR"/product/overlay/MiuiFrameworkTelephonyResOverlay.apk "$MIGRATION_EXTRACT_DIR"/product/overlay
 
 # 修复息屏显示
