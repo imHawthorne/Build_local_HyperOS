@@ -337,11 +337,18 @@ sed -i '/<integer-array name="fpsList">/,/<\/integer-array>/{
 
 # 解锁狂暴引擎
 echo "\n\n===== 解锁"狂暴引擎"第二部分 ====="
-sed -i '/<!-- BSP BEGIN -->/a \
-    <!-- Whether support WildBoost --> \
-    <bool name="support_wild_boost">true</bool> \
-    <!-- Whether support WildBoost in Battery & Performance --> \
-    <bool name="support_wild_boost_bat_perf">true</bool>' "$MIGRATION_EXTRACT_DIR/product/etc/device_features/$STOCK_EXTRACT_DIR.xml"
+
+# 判断 STOCK_EXTRACT_DIR 是否为 nuwa 或 ishtar
+if [ "$STOCK_EXTRACT_DIR" = "nuwa" ] || [ "$STOCK_EXTRACT_DIR" = "ishtar" ]; then
+    sed -i '/<!-- BSP BEGIN -->/a \
+        <!-- Whether support WildBoost --> \
+        <bool name="support_wild_boost">true</bool> \
+        <!-- Whether support WildBoost in Battery & Performance --> \
+        <bool name="support_wild_boost_bat_perf">true</bool>' "$MIGRATION_EXTRACT_DIR/product/etc/device_features/$STOCK_EXTRACT_DIR.xml"
+    echo "已为 $STOCK_EXTRACT_DIR 设备添加 WildBoost 支持配置"
+else
+    echo "当前设备 $STOCK_EXTRACT_DIR 不支持此操作，跳过配置"
+fi
 
 # 插入狂暴引擎需要的依赖
 cp -f ./common_files/perfmgr.ko "$STOCK_EXTRACT_DIR/vendor_dlkm/lib/modules/"
