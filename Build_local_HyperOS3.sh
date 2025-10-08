@@ -42,7 +42,7 @@ process_stock_package() {
     # 4. 提取镜像文件
     STOCK_IMAGES=(
         "odm.img" "product.img" "system.img" "system_ext.img" 
-        "system_dlkm.img" "vendor.img" "vendor_dlkm.img"
+        "system_dlkm.img" "vendor.img" "vendor_dlkm.img" "mi_ext.img"
     )
     echo -e "\n Stock 镜像列表：${STOCK_IMAGES[*]}"
     for image in "${STOCK_IMAGES[@]}"; do
@@ -223,11 +223,11 @@ cp -rf "$STOCK_EXTRACT_DIR/product/etc/device_features/" "$MIGRATION_EXTRACT_DIR
 
 # 屏蔽系统更新检测
 echo "\n\n===== 屏蔽系统更新检测 ====="
-sed -i 's/<bool name="support_ota_validate">true<\/bool>/<bool name="support_ota_validate">false<\/bool>/' "$MIGRATION_EXTRACT_DIR/product/etc/device_features/nuwa.xml"
+sed -i 's/<bool name="support_ota_validate">true<\/bool>/<bool name="support_ota_validate">false<\/bool>/' "$MIGRATION_EXTRACT_DIR/product/etc/device_features/$STOCK_EXTRACT_DIR.xml"
 
 # 解锁 Widevine L1 指纹支付证书在线更新
 echo "\n\n===== 解锁 widevine L1 指纹支付证书在线更新 ====="
-sed -i 's/<integer name="support_widevine_l1">1<\/integer>/<integer name="support_widevine_l1">2<\/integer>/' "$MIGRATION_EXTRACT_DIR/product/etc/device_features/nuwa.xml"
+sed -i 's/<integer name="support_widevine_l1">1<\/integer>/<integer name="support_widevine_l1">2<\/integer>/' "$MIGRATION_EXTRACT_DIR/product/etc/device_features/$STOCK_EXTRACT_DIR.xml"
 
 # 添加来自于"Xiaomi 15 Ultra"的修改版相机 6.0.000250.0
 echo "\n\n===== 添加来自于"Xiaomi 15 Ultra"的修改版相机 6.0.000250.0 ====="
@@ -254,13 +254,48 @@ echo "\n\n===== 恢复官方的特有壁纸 ====="
 SRC_BASE="$STOCK_EXTRACT_DIR/product/media/wallpaper"
 DST_BASE="$MIGRATION_EXTRACT_DIR/product/media/wallpaper"
 
-cp -rf "${SRC_BASE}/wallpaper_group/06_GlassyLight/" "${DST_BASE}/wallpaper_group/06_GlassyLight/"
-cp -rf "${SRC_BASE}/wallpaper_group/07_ShadowGeometry/" "${DST_BASE}/wallpaper_group/07_ShadowGeometry/"
+# 仅当STOCK_EXTRACT_DIR包含fuxi或nuwa时执行复制
+if [[ "$STOCK_EXTRACT_DIR" == *"fuxi"* || "$STOCK_EXTRACT_DIR" == *"nuwa"* ]]; then
+  # 检查源目录是否存在
+  if [ -d "${SRC_BASE}/wallpaper_group/06_GlassyLight" ] && [ -d "${SRC_BASE}/wallpaper_group/07_ShadowGeometry" ]; then
+    # 创建目标目录（若不存在）
+    mkdir -p "${DST_BASE}/wallpaper_group/"
+    # 复制壁纸文件
+    cp -rf "${SRC_BASE}/wallpaper_group/06_GlassyLight/" "${DST_BASE}/wallpaper_group/06_GlassyLight/"
+    cp -rf "${SRC_BASE}/wallpaper_group/07_ShadowGeometry/" "${DST_BASE}/wallpaper_group/07_ShadowGeometry/"
+    echo "特有壁纸恢复成功！已复制以下目录："
+    echo "- 06_GlassyLight"
+    echo "- 07_ShadowGeometry"
+  else
+    echo "警告：源壁纸目录不存在，跳过复制"
+  fi
+else
+  echo "STOCK_EXTRACT_DIR不是fuxi或nuwa，不执行壁纸恢复"
+fi
 
 # 修复"NFC"功能不工作
-echo "\n\n===== 修复"NFC"功能不工作 ====="
+echo -e "\n\n===== 修复NFC功能不工作 ====="
+
+# 先删除原NFC目录（通用操作）
 rm -rf "$MIGRATION_EXTRACT_DIR/product/pangu/system/app/XMNfcNci"
-7z x ./common_files/NQNfcNci.7z -o"$MIGRATION_EXTRACT_DIR/product/pangu/system/app/"
+
+# 根据设备型号判断解压对应文件
+if [[ "$STOCK_EXTRACT_DIR" == *"fuxi"* || "$STOCK_EXTRACT_DIR" == *"nuwa"* ]]; then
+    # fuxi或nuwa设备：解压 NQNfcNci.7z
+    echo "检测到fuxi/nuwa设备，解压NQNfcNci.7z..."
+    7z x ./common_files/NQNfcNci.7z -o"$MIGRATION_EXTRACT_DIR/product/pangu/system/app/"
+    echo "NQNfcNci.7z解压完成"
+
+elif [[ "$STOCK_EXTRACT_DIR" == *"ishtar"* ]]; then
+    # ishtar设备：解压 Nfc_st.7z
+    echo "检测到ishtar设备，解压Nfc_st.7z..."
+    7z x ./common_files/Nfc_st.7z -o"$MIGRATION_EXTRACT_DIR/product/pangu/system/app/"
+    echo "Nfc_st.7z解压完成"
+
+else
+    # 未匹配设备型号
+    echo "警告：未识别设备型号（STOCK_EXTRACT_DIR=$STOCK_EXTRACT_DIR），未执行NFC文件解压"
+fi
 
 # 修复开机动画分辨率
 echo "\n===== 修复开机动画分辨率 ====="
@@ -269,7 +304,7 @@ cp -f "$STOCK_EXTRACT_DIR"/product/media/bootanimation.zip "$MIGRATION_EXTRACT_D
 # 修复基带不工作
 echo "\n\n===== 修复基带未知 ====="
 rm -rf "$MIGRATION_EXTRACT_DIR/product/app/LyraSdkApp"
-7z x ./common_files/LyraSdkApp.7z -o"$MIGRATION_EXTRACT_DIR/product/app/LyraSdkApp/" -y
+7z x ./common_files/LyraSdkApp.7z -o"$MIGRATION_EXTRACT_DIR/product/app/" -y
 
 # 去除国区谷歌商店限制
 echo "\n\n===== 去除国区谷歌商店限制 ====="
@@ -282,14 +317,14 @@ sed -i '/<bool name="is_aod_need_grayscale">false<\/bool>/a \
     <!--whether the device supports aod fullscreen mode--> \
     <bool name="support_aod_fullscreen">true</bool> \
     <!-- The fps of aon_screen_off--> \
-    <integer name="aon_screen_off_fps">0</integer>' "$MIGRATION_EXTRACT_DIR"/product/etc/device_features/nuwa.xml
+    <integer name="aon_screen_off_fps">0</integer>' "$MIGRATION_EXTRACT_DIR"/product/etc/device_features/$STOCK_EXTRACT_DIR.xml
 sed -i ''"$(sed -n '/ro.vendor.display.primary_idle_refresh_rate/=' "$STOCK_EXTRACT_DIR/odm/etc/build.prop")"'a ro.vendor.mi_sf.aod_mode_ddic_refresh_rate=1' "$STOCK_EXTRACT_DIR/odm/etc/build.prop"
 
 # 解锁节律护眼模
 echo "\n\n=====解锁节律护眼支持 ====="
 sed -i '/<bool name="config_sunlight_mode_available">true<\/bool>/a \
     <!-- default rhythmic eyecare mode --> \
-    <integer name="default_eyecare_mode">2</integer>' "$MIGRATION_EXTRACT_DIR/product/etc/device_features/nuwa.xml"
+    <integer name="default_eyecare_mode">2</integer>' "$MIGRATION_EXTRACT_DIR/product/etc/device_features/$STOCK_EXTRACT_DIR.xml"
 
 # 解锁24-30-40隐藏屏幕刷新率
 echo "\n\n===== 解锁24-30-40hz隐藏刷新率支持 ====="
@@ -298,7 +333,7 @@ sed -i '/<integer-array name="fpsList">/,/<\/integer-array>/{
         <item>40</item>\
         <item>30</item>\
         <item>24</item>
-}' "$MIGRATION_EXTRACT_DIR/product/etc/device_features/nuwa.xml"
+}' "$MIGRATION_EXTRACT_DIR/product/etc/device_features/$STOCK_EXTRACT_DIR.xml"
 
 # 解锁狂暴引擎
 echo "\n\n===== 解锁"狂暴引擎"第二部分 ====="
@@ -306,7 +341,7 @@ sed -i '/<!-- BSP BEGIN -->/a \
     <!-- Whether support WildBoost --> \
     <bool name="support_wild_boost">true</bool> \
     <!-- Whether support WildBoost in Battery & Performance --> \
-    <bool name="support_wild_boost_bat_perf">true</bool>' "$MIGRATION_EXTRACT_DIR/product/etc/device_features/nuwa.xml"
+    <bool name="support_wild_boost_bat_perf">true</bool>' "$MIGRATION_EXTRACT_DIR/product/etc/device_features/$STOCK_EXTRACT_DIR.xml"
 
 # 插入狂暴引擎需要的依赖
 cp -f ./common_files/perfmgr.ko "$STOCK_EXTRACT_DIR/vendor_dlkm/lib/modules/"
@@ -314,52 +349,83 @@ sed -i '/\/vendor\/lib\/modules\/msm_gpi\.ko:/a \/vendor\/lib\/modules\/perfmgr.
 sed -i '/migt\.ko/a perfmgr.ko' "$STOCK_EXTRACT_DIR/vendor_dlkm/lib/modules/modules.load"
 
 # magiskboot hexpatch处理部分
-MAGISKBOOT="./tools/binary/magiskboot"
-TARGET_DIR="$MIGRATION_EXTRACT_DIR/system_ext"
-LIB_FILES=(
-    "lib/libmigui.so"       # 32位库文件
-    "lib64/libmigui.so"     # 64位库文件
-)
-# 替换规则：原始十六进制字符串 → 目标十六进制字符串（按顺序对应）
-REPLACEMENTS=(
-    "726F2E70726F647563742E646576696365 726F2E656173746D6F642E646576696365"
-    "726F2E70726F647563742E70726F647563742E6E616D65 726F2E656173746D6F642E70726F647563742E6E616D65"
-)
+# 仅当设备为 nuwa 或 ishtar 时执行以下操作
+if [[ "$STOCK_EXTRACT_DIR" == *"nuwa"* || "$STOCK_EXTRACT_DIR" == *"ishtar"* ]]; then
+    echo -e "\n\n===== magiskboot hexpatch处理部分 ====="
+    
+    MAGISKBOOT="./tools/binary/magiskboot"
+    TARGET_DIR="$MIGRATION_EXTRACT_DIR/system_ext"
+    LIB_FILES=(
+        "lib/libmigui.so"       # 32位库文件
+        "lib64/libmigui.so"     # 64位库文件
+    )
+    # 替换规则：原始十六进制字符串 → 目标十六进制字符串（按顺序对应）
+    REPLACEMENTS=(
+        "726F2E70726F647563742E646576696365 726F2E656173746D6F642E646576696365"
+        "726F2E70726F647563742E70726F647563742E6E616D65 726F2E656173746D6F642E70726F647563742E6E616D65"
+    )
 
-# 循环处理每个库文件和替换规则
-for lib in "${LIB_FILES[@]}"; do
-    lib_path="${TARGET_DIR}/${lib}"
-    echo "Processing ${lib_path}..."  # 可选：打印当前处理的文件，方便调试
-    for rule in "${REPLACEMENTS[@]}"; do
-        # 拆分规则为原始字符串和目标字符串（按空格分割）
-        orig_hex=$(echo "$rule" | cut -d' ' -f1)
-        target_hex=$(echo "$rule" | cut -d' ' -f2)
-        # 执行hexpatch命令
-        "${MAGISKBOOT}" hexpatch "${lib_path}" "${orig_hex}" "${target_hex}"
+    # 循环处理每个库文件和替换规则
+    for lib in "${LIB_FILES[@]}"; do
+        lib_path="${TARGET_DIR}/${lib}"
+        echo "Processing ${lib_path}..."  # 调试信息：打印当前处理的文件
+        for rule in "${REPLACEMENTS[@]}"; do
+            # 拆分规则为原始字符串和目标字符串（按空格分割）
+            orig_hex=$(echo "$rule" | cut -d' ' -f1)
+            target_hex=$(echo "$rule" | cut -d' ' -f2)
+            # 执行hexpatch命令
+            "${MAGISKBOOT}" hexpatch "${lib_path}" "${orig_hex}" "${target_hex}"
+        done
     done
-done
 
-sed -i '$a \
+    # 修改build.prop文件，添加Eastmod配置
+    sed -i '$a \
 # Eastmod FEAS Model \
 ro.eastmod.device=vermeer \
 ro.eastmod.product.name=vermeer' "$MIGRATION_EXTRACT_DIR/system_ext/etc/build.prop"
 
-cp -f ./common_files/default_cloud.json "$STOCK_EXTRACT_DIR/odm/etc/"
+    # 复制default_cloud.json文件
+    cp -f ./common_files/default_cloud.json "$STOCK_EXTRACT_DIR/odm/etc/"
+    echo "magiskboot处理及文件复制完成"
+else
+    echo -e "\n\n===== 跳过magiskboot处理：当前设备型号不匹配 ====="
+    echo "STOCK_EXTRACT_DIR变量值：$STOCK_EXTRACT_DIR（仅nuwa/ishtar设备执行此操作）"
+fi
 
 # 添加屏幕配置文件
 echo "\n\n===== 添加屏幕配置文件 ====="
 rm -rf "$MIGRATION_EXTRACT_DIR"/product/etc/displayconfig
 cp -rf "$STOCK_EXTRACT_DIR"/product/etc/displayconfig "$MIGRATION_EXTRACT_DIR"/product/etc
 
-# 修复分辨率大小
-echo "\n\n===== 修复分辨率大小 ====="
-sed -i 's/ro.sf.lcd_density=[^*]*/ro.sf.lcd_density=600/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
-sed -i 's/ro.sf.lcd_sec_density=[^*]*/ro.sf.lcd_sec_density=600/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
-sed -i 's/persist.miui.density_v2=[^*]*/persist.miui.density_v2=600/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
+echo -e "\n\n===== 修复分辨率大小 ====="
+
+# 判断设备型号（STOCK_EXTRACT_DIR变量值）
+if [[ "$STOCK_EXTRACT_DIR" == *"nuwa"* || "$STOCK_EXTRACT_DIR" == *"ishtar"* ]]; then
+    # nuwa/ishtar设备：设置密度为600
+    sed -i 's/ro.sf.lcd_density=[^*]*/ro.sf.lcd_density=600/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
+    sed -i 's/ro.sf.lcd_sec_density=[^*]*/ro.sf.lcd_sec_density=600/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
+    sed -i 's/persist.miui.density_v2=[^*]*/persist.miui.density_v2=600/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
+    echo "已为 nuwa/ishtar 设备设置分辨率密度为 600"
+
+elif [[ "$STOCK_EXTRACT_DIR" == *"fuxi"* ]]; then
+    # fuxi设备：设置密度为440
+    sed -i 's/ro.sf.lcd_density=[^*]*/ro.sf.lcd_density=440/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
+    sed -i 's/ro.sf.lcd_sec_density=[^*]*/ro.sf.lcd_sec_density=440/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
+    sed -i 's/persist.miui.density_v2=[^*]*/persist.miui.density_v2=440/' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
+    echo "已为 fuxi 设备设置分辨率密度为 440"
+
+else
+    # 其他设备：提示未匹配型号
+    echo "警告：未识别设备型号（STOCK_EXTRACT_DIR=$STOCK_EXTRACT_DIR），未执行分辨率修复"
+fi
 
 # 禁用不可卸载 2.0
 echo "\n\n===== 禁用不可卸载 2.0 ====="
 sed -i 's/ro.miui.support.system.app.uninstall.v2=true/# ro.miui.support.system.app.uninstall.v2=true/g' "$MIGRATION_EXTRACT_DIR"/mi_ext/etc/build.prop
+
+# 禁用不支持的自适应刷新率Pro
+echo "\n\n===== 禁用不支持的自适应刷新率Pro ====="
+sed -i 's/ro.display.enable_pwm_switch=true/# ro.display.enable_pwm_switch=true/g' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
 
 # ==============================================
 # 需删除的套壳应用目录列表（每行一个路径，便于检查和增删）
@@ -556,8 +622,26 @@ echo "\n\n===== 修复蓝牙耳机沉浸声 ====="
 sed -i '/^ro\.audio\.spatializer_enabled=true/a ro\.audio\.stereo_spatialization_enabled=true' "$STOCK_EXTRACT_DIR/vendor/build.prop"
 
 # 解锁控制中心透明效果 & 修复小米超级岛
-echo "\n\n===== 解锁控制中心透明效果 & 该死的小米超级岛 ====="
-cp -f ./common_files/EastXiaomiSystemUIOverlay.apk "$MIGRATION_EXTRACT_DIR"/product/overlay
+echo -e "\n\n===== 解锁控制中心透明效果 & 该死的小米超级岛 ====="
+
+# 根据设备型号选择对应APK文件
+if [[ "$STOCK_EXTRACT_DIR" == *"nuwa"* || "$STOCK_EXTRACT_DIR" == *"ishtar"* ]]; then
+    # nuwa/ishtar设备：使用默认版Overlay APK
+    overlay_apk="EastXiaomiSystemUIOverlay.apk"
+    echo "检测到nuwa/ishtar设备，使用标准版Overlay文件：$overlay_apk"
+elif [[ "$STOCK_EXTRACT_DIR" == *"fuxi"* ]]; then
+    # fuxi设备：使用fuxi专用版Overlay APK
+    overlay_apk="EastXiaomiSystemUIOverlay_fuxi.apk"
+    echo "检测到fuxi设备，使用fuxi专用版Overlay文件：$overlay_apk"
+else
+    # 其他设备：跳过操作并提示
+    echo "当前设备型号不匹配（需nuwa/ishtar/fuxi），跳过Overlay文件复制"
+    exit 0  # 可根据需要保留或删除此行（是否完全终止后续操作）
+fi
+
+# 执行文件复制（仅匹配设备型号时执行）
+cp -f "./common_files/$overlay_apk" "$MIGRATION_EXTRACT_DIR/product/overlay/"
+echo "Overlay文件已复制至目标路径：$MIGRATION_EXTRACT_DIR/product/overlay/"
 
 # 替换底包的Overlay
 echo "\n\n===== 替换底包的Overlay ====="
@@ -743,31 +827,35 @@ if [ ! -f "$TARGET_FILE" ]; then
 fi
 
 # 根据STOCK_EXTRACT_DIR值执行不同替换
+REPLACEMENT_DONE=false  # 标记是否执行了替换操作
+
 case "$STOCK_EXTRACT_DIR" in
-  *nuwa*)  # 匹配包含"nuwa"的路径（如/xxx/nuwa/xxx）
+  *nuwa*)  # 匹配包含"nuwa"的路径
     echo "检测到STOCK_EXTRACT_DIR包含nuwa，执行替换：60,1:492"
     sed -i.bak 's/ro.vendor.display.primary_idle_refresh_rate=[^*]*/ro.vendor.display.primary_idle_refresh_rate=60,1:492/' "$TARGET_FILE"
+    REPLACEMENT_DONE=true
     ;;
   *ishtar*)  # 匹配包含"ishtar"的路径
     echo "检测到STOCK_EXTRACT_DIR包含ishtar，执行替换：60,1:528"
     sed -i.bak 's/ro.vendor.display.primary_idle_refresh_rate=[^*]*/ro.vendor.display.primary_idle_refresh_rate=60,1:528/' "$TARGET_FILE"
+    REPLACEMENT_DONE=true
     ;;
-  *)  # 不匹配时提示
+  *)  # 不匹配时仅提示，不执行替换
     echo "警告：STOCK_EXTRACT_DIR既不是nuwa也不是ishtar，未执行替换"
-    exit 0  # 非错误，仅退出
     ;;
 esac
 
-# 验证替换结果
-if grep -q "ro.vendor.display.primary_idle_refresh_rate=" "$TARGET_FILE"; then
-  echo "替换完成，当前值："
-  grep "ro.vendor.display.primary_idle_refresh_rate=" "$TARGET_FILE"
-  # 可选：确认无误后删除备份文件（取消注释下行）
-  rm -f "${TARGET_FILE}.bak"
-else
-  echo "替换失败！已恢复原文件"
-  mv -f "${TARGET_FILE}.bak" "$TARGET_FILE"
-  exit 1
+# 仅在执行过替换操作后，才验证结果
+if [ "$REPLACEMENT_DONE" = true ]; then
+  if grep -q "ro.vendor.display.primary_idle_refresh_rate=" "$TARGET_FILE"; then
+    echo "替换完成，当前值："
+    grep "ro.vendor.display.primary_idle_refresh_rate=" "$TARGET_FILE"
+    # 可选：确认无误后删除备份文件（取消注释下行）
+    # rm -f "${TARGET_FILE}.bak"
+  else
+    echo "替换失败！已恢复原文件"
+    mv -f "${TARGET_FILE}.bak" "$TARGET_FILE"
+  fi
 fi
 
 # 启用vulkan渲染
@@ -803,10 +891,6 @@ sudo mv "$MIGRATION_EXTRACT_DIR"/system_ext/etc/perfinit_bdsize_zram.conf ./tmp/
 jq '.zram += [{"product_name": ["umi", "cmi", "cas", "apollo", "thyme", "alioth", "munch", "venus", "mars", "star", "odin", "fuxi", "nuwa", "ishtar"], "zram_size": {"6": 6144, "8": 8192, "12": 12288, "16": 16384, "24": 24567}}]' ./tmp/perfinit_bdsize_zram.conf >./tmp/perfinit_bdsize_zram_out.conf
 sudo mv ./tmp/perfinit_bdsize_zram_out.conf "$MIGRATION_EXTRACT_DIR"/system_ext/etc/perfinit_bdsize_zram.conf
 sudo rm -rf ./tmp
-
-# 启用dm设备映射控制器
-echo "启用dm设备映射控制器"
-sed -i '/persist.sys.stability.swapEnable=true/a persist.miui.extm.dm_opt.enable=true' "$MIGRATION_EXTRACT_DIR"/product/etc/build.prop
 
 # 添加性能等级支持
 PRODUCT_BUILD_PROP="$MIGRATION_EXTRACT_DIR/product/etc/build.prop"
@@ -981,13 +1065,48 @@ done
 echo -e "\n===== 常规修改执行完成 ====="
 
 # 自定义版本号
-OLD_VERSION1="OS3.0.9.0.WPBCNXM"
-OLD_VERSION2="OS2.0.215.0.VMBCNXM"
-NEW_VERSION="OS3.0.250928.0.WMBCNXM"
+# ==============================================
+# 动态获取旧版本号 & 接收用户输入新版本号
+# ==============================================
+echo "=== 版本号配置初始化 ==="
+
+# 1. 动态获取 OLD_VERSION1（从MIGRATION路径的build.prop中提取）
+OLD_VERSION1_FILE="$MIGRATION_EXTRACT_DIR/mi_ext/etc/build.prop"
+if [ -f "$OLD_VERSION1_FILE" ]; then
+    OLD_VERSION1=$(grep "^ro.mi.os.version.incremental=" "$OLD_VERSION1_FILE" | cut -d'=' -f2)
+    echo "已从MIGRATION提取旧版本号1：$OLD_VERSION1"
+else
+    echo "错误：文件不存在，无法获取OLD_VERSION1 → $OLD_VERSION1_FILE"
+    exit 1  # 关键文件缺失，终止执行
+fi
+
+# 2. 动态获取 OLD_VERSION2（从STOCK路径的build.prop中提取）
+OLD_VERSION2_FILE="$STOCK_EXTRACT_DIR/mi_ext/etc/build.prop"
+if [ -f "$OLD_VERSION2_FILE" ]; then
+    OLD_VERSION2=$(grep "^ro.mi.os.version.incremental=" "$OLD_VERSION2_FILE" | cut -d'=' -f2)
+    echo "已从STOCK提取旧版本号2：$OLD_VERSION2"
+else
+    echo "错误：文件不存在，无法获取OLD_VERSION2 → $OLD_VERSION2_FILE"
+    exit 1  # 关键文件缺失，终止执行
+fi
+
+# 3. 接收用户输入的 NEW_VERSION（带校验）
+while true; do
+    read -p "请输入新版本号（例如 OS3.0.251001.0.WMBCNXM）：" NEW_VERSION
+    if [ -n "$NEW_VERSION" ]; then  # 确保输入不为空
+        echo "已确认新版本号：$NEW_VERSION"
+        break
+    else
+        echo "错误：版本号不能为空，请重新输入！"
+    fi
+done
+
+# ==============================================
+# 替换任务数组（复用动态变量）
+# ==============================================
 DEVICE_NAME_OLD="$MIGRATION_EXTRACT_DIR"
 DEVICE_NAME_NEW="$STOCK_EXTRACT_DIR"
 
-# 替换任务数组：[文件路径]="操作1;操作2;..."（每个操作格式：key=value 或 old_str|new_str）
 declare -A TASKS=(
   ["$MIGRATION_EXTRACT_DIR/mi_ext/etc/build.prop"]="ro.mi.os.version.incremental=$NEW_VERSION;ro.product.mod_device=$DEVICE_NAME_NEW;$OLD_VERSION1|$NEW_VERSION"
   ["$MIGRATION_EXTRACT_DIR/product/etc/build.prop"]="$DEVICE_NAME_OLD|$DEVICE_NAME_NEW;$OLD_VERSION1|$NEW_VERSION"
@@ -995,37 +1114,33 @@ declare -A TASKS=(
   ["$MIGRATION_EXTRACT_DIR/system_ext/etc/build.prop"]="$OLD_VERSION1|$NEW_VERSION"
   ["$STOCK_EXTRACT_DIR/system_dlkm/etc/build.prop"]="$OLD_VERSION2|$NEW_VERSION"
   ["$STOCK_EXTRACT_DIR/vendor_dlkm/etc/build.prop"]="$OLD_VERSION2|$NEW_VERSION"
+  ["$STOCK_EXTRACT_DIR/vendor/odm_dlkm/etc/build.prop"]="$OLD_VERSION2|$NEW_VERSION"
   ["$STOCK_EXTRACT_DIR/vendor/build.prop"]="$OLD_VERSION2|$NEW_VERSION"
   ["$STOCK_EXTRACT_DIR/odm/etc/build.prop"]="$OLD_VERSION2|$NEW_VERSION"
 )
 
 # ==============================================
-# 主逻辑：遍历任务并执行替换
+# 主逻辑：遍历任务并执行替换（保留原备份与操作逻辑）
 # ==============================================
-echo "=== 开始系统配置批量更新 ==="
+echo -e "\n=== 开始系统配置批量更新 ==="
 
 for file in "${!TASKS[@]}"; do
-  # 检查文件是否存在
   if [ ! -f "$file" ]; then
     echo " 跳过不存在的文件：$file"
     continue
   fi
 
-  # 创建备份（仅首次处理时备份）
   backup_file="${file}.bak"
   if [ ! -f "$backup_file" ]; then
     cp -a "$file" "$backup_file" && echo " 已备份：$backup_file"
   fi
 
-  # 解析当前文件的所有操作
   operations="${TASKS[$file]}"
-  IFS=';' read -ra OP_ARR <<< "$operations"  # 按分号分割操作
+  IFS=';' read -ra OP_ARR <<< "$operations"
 
-  # 执行每个操作
   echo -e "\n 处理文件：$file"
   for op in "${OP_ARR[@]}"; do
     if [[ "$op" == *"="* ]]; then
-      # 操作1：key=value（精确匹配key并替换值）
       key="${op%=*}"
       value="${op#*=}"
       if sed -i "s/^${key}=.*/${key}=${value}/" "$file"; then
@@ -1034,7 +1149,6 @@ for file in "${!TASKS[@]}"; do
         echo "   更新失败：$key（可能原key不存在）"
       fi
     elif [[ "$op" == *"|"* ]]; then
-      # 操作2：old_str|new_str（全局替换字符串）
       old_str="${op%|*}"
       new_str="${op#*|}"
       if sed -i "s/${old_str}/${new_str}/g" "$file"; then
@@ -1050,28 +1164,82 @@ echo -e "\n=== 配置更新完成 ==="
 echo "提示：若需恢复原始配置，可执行 → cp -a [文件名].bak [文件名]"
 
 # 解压刷机脚本
+SOURCE_DIR="./tools/recovery"
+DEST_PATH="$STOCK_EXTRACT_DIR/recovery.img"
+
+# 清除官方的recovery image
+rm -rf "$STOCK_EXTRACT_DIR/recovery.img"
+
+# 检测 STOCK_EXTRACT_DIR 中的设备型号并复制对应文件
+case "$STOCK_EXTRACT_DIR" in
+    *fuxi*)
+        # 匹配 fuxi 设备：复制 fuxi 对应的 recovery 文件
+        if [ -f "$SOURCE_DIR/[REC]3.7.1_12-Mi13_v9.0_A16-fuxi-skkk.img" ]; then
+            cp "$SOURCE_DIR/[REC]3.7.1_12-Mi13_v9.0_A16-fuxi-skkk.img" "$DEST_PATH"
+            echo "已复制 fuxi 专用 recovery 至 $DEST_PATH"
+        else
+            echo "错误：fuxi 设备的 recovery 文件不存在（$SOURCE_DIR/[REC]3.7.1_12-Mi13_v9.0_A16-fuxi-skkk.img）"
+        fi
+        ;;
+    *nuwa*)
+        # 匹配 nuwa 设备：复制 nuwa 对应的 recovery 文件
+        if [ -f "$SOURCE_DIR/[REC]3.7.1_12-Mi13Pro_v9.0_A16-nuwa-skkk.img" ]; then
+            cp "$SOURCE_DIR/[REC]3.7.1_12-Mi13Pro_v9.0_A16-nuwa-skkk.img" "$DEST_PATH"
+            echo "已复制 nuwa 专用 recovery 至 $DEST_PATH"
+        else
+            echo "错误：nuwa 设备的 recovery 文件不存在（$SOURCE_DIR/[REC]3.7.1_12-Mi13Pro_v9.0_A16-nuwa-skkk.img）"
+        fi
+        ;;
+    *ishtar*)
+        # 匹配 ishtar 设备：复制 ishtar 对应的 recovery 文件
+        if [ -f "$SOURCE_DIR/[REC]3.7.1_12-Mi13Ultra_v9.0_A16-ishtar-skkk.img" ]; then
+            cp "$SOURCE_DIR/[REC]3.7.1_12-Mi13Ultra_v9.0_A16-ishtar-skkk.img" "$DEST_PATH"
+            echo "已复制 ishtar 专用 recovery 至 $DEST_PATH"
+        else
+            echo "错误：ishtar 设备的 recovery 文件不存在（$SOURCE_DIR/[REC]3.7.1_12-Mi13Ultra_v9.0_A16-ishtar-skkk.img）"
+        fi
+        ;;
+    *)
+        # 未匹配任何设备型号
+        echo "错误：未识别设备型号（STOCK_EXTRACT_DIR=$STOCK_EXTRACT_DIR），无法复制 recovery 文件"
+        ;;
+esac
+
+echo -e "\n\n===== 解压刷机脚本 & 适配设备型号的刷机脚本修改 ====="
+
 mkdir -p "$STOCK_EXTRACT_DIR"/firmware
 mv "$STOCK_EXTRACT_DIR"/*.img "$STOCK_EXTRACT_DIR"/firmware
-
-echo "添加mi_block的Twrp Recovery"
-
-# 定义源文件和目标目录
-SOURCE_FILE="./tools/recovery/[REC]3.7.1_12-Mi13Pro_v9.0_A16-nuwa-skkk.img"
-DESTINATION_FILE="$STOCK_EXTRACT_DIR/recovery.img"
-
-# 复制并重命名文件
-cp "$SOURCE_FILE" "$DESTINATION_FILE"
-
-# 检查复制是否成功
-if [ $? -eq 0 ]; then
-    echo "文件已成功复制并重命名为 recovery.img"
-else
-    echo "复制文件时发生错误"
-fi
 
 unzip -o -q ./tools/flashscript/flashtools.zip -d ./output
 mv "$STOCK_EXTRACT_DIR"/firmware ./output/firmware
 cp -f ./common_files/cust.img ./output/firmware
+
+# 定义目标文件路径（统一管理，便于后续修改）
+FLASH_BAT="./output/FlashWindows.bat"
+FLASH_BAT="./output/FlashWindows.bat"
+UPDATE_BINARY="./output/META-INF/com/google/android/update-binary"
+
+# 根据设备型号动态替换关键词
+target_model=""  # 初始化变量
+if [[ "$STOCK_EXTRACT_DIR" == *"fuxi"* ]]; then
+    target_model="fuxi"
+    echo "检测到fuxi设备，将脚本中的nuwa替换为：$target_model"
+elif [[ "$STOCK_EXTRACT_DIR" == *"ishtar"* ]]; then
+    target_model="ishtar"
+    echo "检测到ishtar设备，将脚本中的nuwa替换为：$target_model"
+else
+    echo "未匹配目标设备型号（需fuxi/ishtar），跳过刷机脚本修改"
+fi
+
+# 仅当target_model有值（即匹配到fuxi/ishtar）时执行替换和输出
+if [[ -n "$target_model" ]]; then
+    sed -i "s/nuwa/$target_model/g" "$FLASH_BAT"
+    sed -i "s/nuwa/$target_model/g" "$UPDATE_BINARY"
+    echo "刷机脚本修改完成：已将nuwa替换为$target_model"
+    echo "修改文件："
+    echo "  - $FLASH_BAT"
+    echo "  - $UPDATE_BINARY"
+fi
 
 # 修补添加文件的上下文
 FSPATCH_TOOL="./tools/python/fspatch.py"
