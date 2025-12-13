@@ -283,13 +283,13 @@ rm -rf "$MIGRATION_EXTRACT_DIR/product/pangu/system/app/XMNfcNci"
 if [[ "$STOCK_EXTRACT_DIR" == *"fuxi"* || "$STOCK_EXTRACT_DIR" == *"nuwa"* ]]; then
     # fuxi或nuwa设备：解压 NQNfcNci.7z
     echo "检测到fuxi/nuwa设备，解压NQNfcNci.7z..."
-    7z x ./common_files/NQNfcNci.7z -o"$MIGRATION_EXTRACT_DIR/product/pangu/system/app/"
+    cp -rf "$STOCK_EXTRACT_DIR/product/pangu/system/app/NQNfcNci/" "$MIGRATION_EXTRACT_DIR/product/pangu/system/app/"
     echo "NQNfcNci.7z解压完成"
 
 elif [[ "$STOCK_EXTRACT_DIR" == *"ishtar"* ]]; then
     # ishtar设备：解压 Nfc_st.7z
     echo "检测到ishtar设备，解压Nfc_st.7z..."
-    7z x ./common_files/Nfc_st.7z -o"$MIGRATION_EXTRACT_DIR/product/pangu/system/app/"
+    cp -rf "$STOCK_EXTRACT_DIR/product/pangu/system/app/Nfc_st/" "$MIGRATION_EXTRACT_DIR/product/pangu/system/app/"
     echo "Nfc_st.7z解压完成"
 
 else
@@ -304,7 +304,7 @@ cp -f "$STOCK_EXTRACT_DIR"/product/media/bootanimation.zip "$MIGRATION_EXTRACT_D
 # 修复基带不工作
 echo "\n\n===== 修复基带未知 ====="
 rm -rf "$MIGRATION_EXTRACT_DIR/product/app/LyraSdkApp"
-7z x ./common_files/LyraSdkApp.7z -o"$MIGRATION_EXTRACT_DIR/product/app/" -y
+cp -rf "$STOCK_EXTRACT_DIR/product/app/LyraSdkApp/" "$MIGRATION_EXTRACT_DIR/product/app/LyraSdkApp/"
 
 # 去除国区谷歌商店限制
 echo "\n\n===== 去除国区谷歌商店限制 ====="
@@ -653,6 +653,8 @@ echo "Overlay文件已复制至目标路径：$MIGRATION_EXTRACT_DIR/product/ove
 # 替换底包的Overlay
 echo "\n\n===== 替换底包的Overlay ====="
 APKS=(
+    "AospFrameworkResOverlay.apk"
+    "AospWifiResOverlay.apk"
     "DevicesAndroidOverlay.apk"
     "DevicesOverlay.apk"
     "MiuiFrameworkResOverlay.apk"
@@ -663,14 +665,6 @@ APKS=(
 
 for apk in "${APKS[@]}"; do
     mv -f "${STOCK_EXTRACT_DIR}/product/overlay/${apk}" "${MIGRATION_EXTRACT_DIR}/product/overlay/"
-done
-
-APKS1=(
-    "AospFrameworkResOverlay.apk"
-    "AospWifiResOverlay.apk"
-)
-for apk1 in "${APKS1[@]}"; do
-    cp -f "./common_files/${apk1}" "${MIGRATION_EXTRACT_DIR}/product/overlay/"
 done
 
 # 去除无用的屏幕刘海切换
@@ -763,58 +757,6 @@ sudo mv -f "${MOD_DIR}/${OVERLAY_NAME}_modified.apk" "${TARGET_APK_PATH}" || {
 sudo rm -rf "${MOD_DIR}"
 
 echo -e "\n===== 屏幕刘海配置处理完成 ====="
-
-# 修复息屏显示
-MOD_NAME="DevicesAndroidOverlay"
-MOD_DIR="./mod"
-OVERLAY_APK="${MOD_NAME}.apk"
-TARGET_APK_PATH="${MIGRATION_EXTRACT_DIR}/product/overlay/${OVERLAY_APK}"
-APK_EDITOR="java -jar ./tools/jar/APKEditor.jar"
-STRINGS_XML="${MOD_DIR}/${MOD_NAME}/resources/package_1/res/values/strings.xml"
-OLD_DOZE_COMPONENT='com.android.systemui/com.android.systemui.doze.DozeService'
-NEW_DOZE_COMPONENT='com.android.systemui/com.android.keyguard.doze.MiuiDozeService'
-
-# ==============================================
-# 执行区：分步处理逻辑
-# ==============================================
-echo -e "\n===== 开始修复息屏显示 ====="
-
-# 1. 环境预检查（关键依赖验证）
-echo "→ 检查环境依赖..."
-[ -z "${MIGRATION_EXTRACT_DIR}" ] && { echo "错误：MIGRATION_EXTRACT_DIR变量未定义！"; exit 1; }
-[ ! -f "${TARGET_APK_PATH}" ] && { echo "错误：目标APK不存在 → ${TARGET_APK_PATH}"; exit 1; }
-[ ! -f "$(echo "${APK_EDITOR}" | awk '{print $3}')" ] && { echo "错误：APKEditor.jar不存在！"; exit 1; }
-
-# 2. 准备工作目录
-echo "→ 初始化工作目录..."
-mkdir -p "${MOD_DIR}" || { echo "创建目录失败！"; exit 1; }
-cp -f "${TARGET_APK_PATH}" "${MOD_DIR}/" || { echo "复制APK失败！"; exit 1; }
-
-# 3. 反编译APK（带错误捕获）
-echo "→ 反编译APK文件..."
-if ! ${APK_EDITOR} d -f -i "${MOD_DIR}/${OVERLAY_APK}" -o "${MOD_DIR}/${MOD_NAME}" 2>/dev/null; then
-    echo "错误：反编译APK失败！"
-    exit 1
-fi
-
-# 4. 修改strings.xml（精准替换）
-echo "→ 修改息屏服务配置..."
-sed -i "s#${OLD_DOZE_COMPONENT}#${NEW_DOZE_COMPONENT}#g" "${STRINGS_XML}"
-
-
-# 5. 重新编译APK
-echo "→ 重新编译修改后的APK..."
-if ! ${APK_EDITOR} b -f -i "${MOD_DIR}/${MOD_NAME}" -o "${MOD_DIR}/${MOD_NAME}_modified.apk" 2>/dev/null; then
-    echo "错误：APK编译失败！"
-    exit 1
-fi
-
-# 6. 替换目标文件并清理
-echo "→ 应用修改并清理..."
-sudo cp -f "${MOD_DIR}/${MOD_NAME}_modified.apk" "${TARGET_APK_PATH}" || { echo "替换APK失败！"; exit 1; }
-sudo rm -rf "${MOD_DIR}"  # 强制清理临时文件
-
-echo -e "\n===== 息屏显示修复完成 ====="
 
 # 恢复静止刷新率下限为1Hz
 echo "\n\n===== 恢复静止刷新率下限为1Hz ====="
