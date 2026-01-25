@@ -276,19 +276,18 @@ fi
 # 修复"NFC"功能不工作
 echo -e "\n\n===== 修复NFC功能不工作 ====="
 
-# 先删除原NFC目录（通用操作）
-rm -rf "$MIGRATION_EXTRACT_DIR/product/pangu/system/app/XMNfcNci"
-
 # 根据设备型号判断解压对应文件
 if [[ "$STOCK_EXTRACT_DIR" == *"fuxi"* || "$STOCK_EXTRACT_DIR" == *"nuwa"* ]]; then
     # fuxi或nuwa设备：解压 NQNfcNci.7z
     echo "检测到fuxi/nuwa设备，解压NQNfcNci.7z..."
+    rm -rf "$MIGRATION_EXTRACT_DIR/product/pangu/system/app/Nfc_st"
     cp -rf "$STOCK_EXTRACT_DIR/product/pangu/system/app/NQNfcNci/" "$MIGRATION_EXTRACT_DIR/product/pangu/system/app/"
     echo "NQNfcNci.7z解压完成"
 
 elif [[ "$STOCK_EXTRACT_DIR" == *"ishtar"* ]]; then
     # ishtar设备：解压 Nfc_st.7z
     echo "检测到ishtar设备，解压Nfc_st.7z..."
+    rm -rf "$MIGRATION_EXTRACT_DIR/product/pangu/system/app/Nfc_st"
     cp -rf "$STOCK_EXTRACT_DIR/product/pangu/system/app/Nfc_st/" "$MIGRATION_EXTRACT_DIR/product/pangu/system/app/"
     echo "Nfc_st.7z解压完成"
 
