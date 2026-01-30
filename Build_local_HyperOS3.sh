@@ -19,59 +19,98 @@ create_dir() {
     fi
 }
 
-
 # ======================== 主流程：处理 Stock 包 ========================
 process_stock_package() {
     echo -e "\n===== 开始处理 Stock 固件包 ====="
     
-    # 1. 获取用户输入：ZIP 文件路径（保留默认值，方便快速测试）
-    read -p "请输入 Stock ZIP 文件路径（默认：./downloads/nuwa-ota_full-OS2.0.215.0.VMBCNXM-user-15.0-03badd90e8.zip）: " STOCK_ZIP
-    STOCK_ZIP=${STOCK_ZIP:-"./downloads/nuwa-ota_full-OS2.0.215.0.VMBCNXM-user-15.0-03badd90e8.zip"}
+    # 1. 扫描downloads目录下zip固件包，序号选择
+    DOWNLOADS_DIR="./downloads"
+    [ ! -d "$DOWNLOADS_DIR" ] && error_exit "downloads目录不存在，请先创建并放入固件包"
+    
+    STOCK_ZIP_LIST=("$DOWNLOADS_DIR"/*.zip)
+    STOCK_ZIP_LIST=($(for f in "${STOCK_ZIP_LIST[@]}"; do [ -f "$f" ] && echo "$f"; done))
+    [ ${#STOCK_ZIP_LIST[@]} -eq 0 ] && error_exit "downloads目录无zip固件包"
+
+    # 打印可选列表
+    echo -e "\n===== 可选固件包 ====="
+    for idx in "${!STOCK_ZIP_LIST[@]}"; do
+        echo "  $((idx+1)). ${STOCK_ZIP_LIST[idx]}"
+    done
+
+    # 选序号+校验
+    read -p "请输入固件包序号：" CHOICE
+    if ! [[ "$CHOICE" =~ ^[0-9]+$ ]] || [ "$CHOICE" -lt 1 ] || [ "$CHOICE" -gt ${#STOCK_ZIP_LIST[@]} ]; then
+        error_exit "无效序号，请重新运行"
+    fi
+    STOCK_ZIP="${STOCK_ZIP_LIST[$((CHOICE-1))]}"
+    echo -e "  已选：$STOCK_ZIP"
     check_file_exists "$STOCK_ZIP"
 
-    # 2. 获取用户输入：提取目录（**移除默认值，强制手动输入**）
-    read -p "请输入 Stock 提取目录（不可留空）: " STOCK_EXTRACT_DIR
-    [ -z "$STOCK_EXTRACT_DIR" ] && error_exit "提取目录不可为空，请重新运行并输入有效路径"
+    # 2. 自动生成提取目录：截取文件名-ota前字符（路径同downloads同级）
+    STOCK_FILENAME=$(basename "$STOCK_ZIP")
+    STOCK_EXTRACT_DIR="${STOCK_FILENAME%-ota*}"  # 截-ota及后面所有字符
+    [ -z "$STOCK_EXTRACT_DIR" ] && error_exit "文件名不含-ota，无法生成提取目录"
+    echo -e "  自动生成提取目录：$STOCK_EXTRACT_DIR"
     create_dir "$STOCK_EXTRACT_DIR"
 
-    # 3. 解压 payload.bin
-    echo -e "\n 正在从 Stock ZIP 提取 payload..."
+    # 3. 解压payload.bin
+    echo -e "\n 提取Stock包payload..."
     ./tools/binary/payload_extract -i "$STOCK_ZIP" -t zip -o "$STOCK_EXTRACT_DIR" -x \
-        || error_exit "payload_extract 失败（Stock 包）"
+        || error_exit "payload_extract失败（Stock包）"
 
-    # 4. 提取镜像文件
+    # 4. 提取各类镜像
     STOCK_IMAGES=(
         "odm.img" "product.img" "system.img" "system_ext.img" 
         "system_dlkm.img" "vendor.img" "vendor_dlkm.img" "mi_ext.img"
     )
-    echo -e "\n Stock 镜像列表：${STOCK_IMAGES[*]}"
+    echo -e "\n 待提取镜像：${STOCK_IMAGES[*]}"
     for image in "${STOCK_IMAGES[@]}"; do
         IMAGE_PATH="$STOCK_EXTRACT_DIR/$image"
         check_file_exists "$IMAGE_PATH"
         
         echo -e "\n 提取 $image..."
         ./tools/binary/extract.erofs -i "$IMAGE_PATH" -o "$STOCK_EXTRACT_DIR" -x \
-            || error_exit "提取 $image 失败（Stock 包）"
+            || error_exit "提取$image失败（Stock包）"
     done
 
-    # 5. 清理原始镜像文件
-    echo -e "\n 清理 Stock 原始镜像文件..."
+    # 5. 清理原始镜像
+    echo -e "\n 清理原始镜像文件..."
     rm -f "${STOCK_IMAGES[@]/#/$STOCK_EXTRACT_DIR/}"
 }
-
 
 # ======================== 主流程：处理 Migration 包 ========================
 process_migration_package() {
     echo -e "\n\n===== 开始处理 Migration 固件包 ====="
     
-    # 1. 获取用户输入：ZIP 文件路径（保留默认值）
-    read -p "请输入 Migration ZIP 文件路径（默认：./downloads/popsicle-ota_full-OS3.0.9.0.WPBCNXM-user-16.0-cd841de17d.zip）: " MIGRATION_ZIP
-    MIGRATION_ZIP=${MIGRATION_ZIP:-"./downloads/popsicle-ota_full-OS3.0.9.0.WPBCNXM-user-16.0-cd841de17d.zip"}
+    # 1. 扫描downloads目录下zip固件包，生成序号选择列表
+    DOWNLOADS_DIR="./downloads"
+    [ ! -d "$DOWNLOADS_DIR" ] && error_exit "downloads目录不存在，请先创建并放入固件包"
+    
+    MIGRATION_ZIP_LIST=("$DOWNLOADS_DIR"/*.zip)
+    # 过滤无效文件，仅保留实际存在的zip
+    MIGRATION_ZIP_LIST=($(for f in "${MIGRATION_ZIP_LIST[@]}"; do [ -f "$f" ] && echo "$f"; done))
+    [ ${#MIGRATION_ZIP_LIST[@]} -eq 0 ] && error_exit "downloads目录下未找到任何zip格式固件包"
+
+    # 打印可选固件包列表
+    echo -e "\n===== 可选 Migration 固件包 ====="
+    for idx in "${!MIGRATION_ZIP_LIST[@]}"; do
+        echo "  $((idx+1)). ${MIGRATION_ZIP_LIST[idx]}"
+    done
+
+    # 读取并校验用户选择的序号
+    read -p "请输入要处理的Migration固件包序号：" CHOICE
+    if ! [[ "$CHOICE" =~ ^[0-9]+$ ]] || [ "$CHOICE" -lt 1 ] || [ "$CHOICE" -gt ${#MIGRATION_ZIP_LIST[@]} ]; then
+        error_exit "序号输入错误，请输入列表中有效序号"
+    fi
+    MIGRATION_ZIP="${MIGRATION_ZIP_LIST[$((CHOICE-1))]}"
+    echo -e "  已选择：$MIGRATION_ZIP"
     check_file_exists "$MIGRATION_ZIP"
 
-    # 2. 获取用户输入：提取目录（**移除默认值，强制手动输入**）
-    read -p "请输入 Migration 提取目录（不可留空）: " MIGRATION_EXTRACT_DIR
-    [ -z "$MIGRATION_EXTRACT_DIR" ] && error_exit "提取目录不可为空，请重新运行并输入有效路径"
+    # 2. 自动生成提取目录：截取文件名-ota前面的字符，无需手动输入
+    MIGRATION_FILENAME=$(basename "$MIGRATION_ZIP")
+    MIGRATION_EXTRACT_DIR="${MIGRATION_FILENAME%-ota*}"
+    [ -z "$MIGRATION_EXTRACT_DIR" ] && error_exit "固件文件名不含-ota字段，无法自动生成提取目录"
+    echo -e "  自动生成提取目录：$MIGRATION_EXTRACT_DIR"
     create_dir "$MIGRATION_EXTRACT_DIR"
 
     # 3. 解压 payload.bin 指定 image
