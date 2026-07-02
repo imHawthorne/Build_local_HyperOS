@@ -12,7 +12,7 @@ dependencies=(
     # 基础工具
     "pv" "libarchive-tools" "p7zip-full" "unzip" "cpio" 
     # Java 环境
-    "openjdk-21-jre-headless" 
+    "openjdk-25-jre-headless" 
     # 数据处理工具
     "jq" "python3" 
     # 压缩/传输工具
