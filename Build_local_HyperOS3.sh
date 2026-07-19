@@ -589,8 +589,6 @@ VENDOR_PROP="$STOCK_EXTRACT_DIR/vendor/build.prop"
 if [ -f "$VENDOR_PROP" ]; then
     # 解锁 LHDC 自适应采样率
     sed -i '/^persist.vendor.bt.aac_vbr_frm_ctl.enabled=true/a persist.vendor.bt.a2dp.samplerate.supported=true' "$VENDOR_PROP"
-    # 修复蓝牙耳机沉浸声
-    sed -i '/^ro\.audio\.spatializer_enabled=true/a ro\.audio\.stereo_spatialization_enabled=true' "$VENDOR_PROP"
     # 启用 APTX Adaptive 2.2
     sed -i '/^persist.vendor.qcom.bluetooth.aptxadaptiver2_1_support=true/a persist.vendor.qcom.bluetooth.aptxadaptiver2_2_support=true' "$VENDOR_PROP"
     # 跳过 Bluetooth LEAudio Whitelist
