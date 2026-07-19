@@ -190,51 +190,51 @@ echo -e "\n===== 禁用 AVB 2.0 校验 ====="
     0000000000000000617662746F6F6C20 0000000100000000617662746F6F6C20
 
 # ======================== 添加狂暴引擎支持（vendor_boot） ========================
-echo -e "\n===== 添加狂暴引擎支持（vendor_boot） ====="
+# echo -e "\n===== 添加狂暴引擎支持（vendor_boot） ====="
 
-mkdir vendor_boot
-cp -f "$STOCK_EXTRACT_DIR/vendor_boot.img" ./vendor_boot
-cp -f ./tools/binary/magiskboot ./vendor_boot
-cp -f ./common_files/perfmgr.ko ./vendor_boot
+# mkdir vendor_boot
+# cp -f "$STOCK_EXTRACT_DIR/vendor_boot.img" ./vendor_boot
+# cp -f ./tools/binary/magiskboot ./vendor_boot
+# cp -f ./common_files/perfmgr.ko ./vendor_boot
 
-cd vendor_boot
-./magiskboot unpack -h ./vendor_boot.img
-comp=$(./magiskboot decompress ramdisk.cpio 2>&1 | grep -v 'raw' | sed -n 's;.*\[\(.*\)\];\1;p')
-mv -f ramdisk.cpio ramdisk.cpio.$comp
-./magiskboot decompress ramdisk.cpio.$comp ramdisk.cpio 2>&1
-mkdir -p ramdisk && chmod 755 ramdisk
-cd ramdisk
-EXTRACT_UNSAFE_SYMLINKS=1 cpio -d -F ../ramdisk.cpio -i 2>&1
-cd ..
+# cd vendor_boot
+# ./magiskboot unpack -h ./vendor_boot.img
+# comp=$(./magiskboot decompress ramdisk.cpio 2>&1 | grep -v 'raw' | sed -n 's;.*\[\(.*\)\];\1;p')
+# mv -f ramdisk.cpio ramdisk.cpio.$comp
+# ./magiskboot decompress ramdisk.cpio.$comp ramdisk.cpio 2>&1
+# mkdir -p ramdisk && chmod 755 ramdisk
+# cd ramdisk
+# EXTRACT_UNSAFE_SYMLINKS=1 cpio -d -F ../ramdisk.cpio -i 2>&1
+# cd ..
 
-mv -f ./perfmgr.ko ./ramdisk/lib/modules/
+# mv -f ./perfmgr.ko ./ramdisk/lib/modules/
 
 # 插入 modules.dep
-sed -i '/\/lib\/modules\/msm_gpi.ko:/a \/lib\/modules\/perfmgr.ko: \/lib\/modules\/qcom-dcvs.ko \/lib\/modules\/dcvs_fp.ko \/lib\/modules\/qcom_rpmh.ko \/lib\/modules\/cmd-db.ko \/lib\/modules\/qcom_ipc_logging.ko \/lib\/modules\/minidump.ko \/lib\/modules\/smem.ko \/lib\/modules\/gh_rm_drv.ko \/lib\/modules\/gh_dbl.ko \/lib\/modules\/gh_msgq.ko \/lib\/modules\/gh_arm_drv.ko' ./ramdisk/lib/modules/modules.dep
+# sed -i '/\/lib\/modules\/msm_gpi.ko:/a \/lib\/modules\/perfmgr.ko: \/lib\/modules\/qcom-dcvs.ko \/lib\/modules\/dcvs_fp.ko \/lib\/modules\/qcom_rpmh.ko \/lib\/modules\/cmd-db.ko \/lib\/modules\/qcom_ipc_logging.ko \/lib\/modules\/minidump.ko \/lib\/modules\/smem.ko \/lib\/modules\/gh_rm_drv.ko \/lib\/modules\/gh_dbl.ko \/lib\/modules\/gh_msgq.ko \/lib\/modules\/gh_arm_drv.ko' ./ramdisk/lib/modules/modules.dep
 
 # 插入 modules.load.recovery
-sed -i '/migt\.ko/a perfmgr.ko' ./ramdisk/lib/modules/modules.load.recovery
+# sed -i '/migt\.ko/a perfmgr.ko' ./ramdisk/lib/modules/modules.load.recovery
 
-cd ./ramdisk
-find | sed 1d | cpio -H newc -R 0:0 -o -F ../ramdisk-new.cpio
-cd ..
+# cd ./ramdisk
+# find | sed 1d | cpio -H newc -R 0:0 -o -F ../ramdisk-new.cpio
+# cd ..
 
-./magiskboot compress=$comp ramdisk-new.cpio 2>&1
-if [ $? != 0 ] && $comp --help 2>/dev/null; then
-    $comp -9c ramdisk-new.cpio > ramdisk.cpio.$comp
-fi
-rm -rf ramdisk.cpio.lz4_legacy ramdisk.cpio
+# ./magiskboot compress=$comp ramdisk-new.cpio 2>&1
+# if [ $? != 0 ] && $comp --help 2>/dev/null; then
+#      $comp -9c ramdisk-new.cpio > ramdisk.cpio.$comp
+# fi
+# rm -rf ramdisk.cpio.lz4_legacy ramdisk.cpio
 
-ramdisk=$(ls ramdisk-new.cpio* 2>/dev/null | tail -n1)
-cp -f $ramdisk ramdisk.cpio
-rm -rf ramdisk-new.cpio.lz4
+# ramdisk=$(ls ramdisk-new.cpio* 2>/dev/null | tail -n1)
+# cp -f $ramdisk ramdisk.cpio
+# rm -rf ramdisk-new.cpio.lz4
 
-mkdir out
-./magiskboot repack -n vendor_boot.img ./out/vendor_boot.img
+# mkdir out
+# ./magiskboot repack -n vendor_boot.img ./out/vendor_boot.img
 
-cd ..
-cp -f ./vendor_boot/out/vendor_boot.img "$STOCK_EXTRACT_DIR"/vendor_boot.img
-rm -rf ./vendor_boot
+# cd ..
+# cp -f ./vendor_boot/out/vendor_boot.img "$STOCK_EXTRACT_DIR"/vendor_boot.img
+# rm -rf ./vendor_boot
 
 # ======================== 禁用 Xiaomi 全局 vulkan 渲染 ========================
 echo -e "\n===== 禁用 Xiaomi 全局 vulkan 渲染 ====="
@@ -304,67 +304,67 @@ else
 fi
 
 # ======================== 解锁狂暴引擎（XML 部分） ========================
-echo -e "\n===== 解锁狂暴引擎（XML） ====="
-if require_device nuwa ishtar; then
-    if [ -f "$DEVICE_XML" ]; then
-        sed -i '/<!-- BSP BEGIN -->/a\
-        <!-- Whether support WildBoost -->\
-        <bool name="support_wild_boost">true</bool>\
-        <!-- Whether support WildBoost in Battery & Performance -->\
-        <bool name="support_wild_boost_bat_perf">true</bool>' "$DEVICE_XML"
-        echo "  已添加 WildBoost 支持配置"
-    else
-        warn_skip "$DEVICE_XML 不存在"
-    fi
-fi
+# echo -e "\n===== 解锁狂暴引擎（XML） ====="
+# if require_device nuwa ishtar; then
+#     if [ -f "$DEVICE_XML" ]; then
+#        sed -i '/<!-- BSP BEGIN -->/a\
+#         <!-- Whether support WildBoost -->\
+#         <bool name="support_wild_boost">true</bool>\
+#         <!-- Whether support WildBoost in Battery & Performance -->\
+#         <bool name="support_wild_boost_bat_perf">true</bool>' "$DEVICE_XML"
+#         echo "  已添加 WildBoost 支持配置"
+#     else
+#         warn_skip "$DEVICE_XML 不存在"
+#     fi
+# fi
 
 # ======================== 插入狂暴引擎依赖（vendor_dlkm） ========================
-echo -e "\n===== 插入狂暴引擎依赖（vendor_dlkm） ====="
-VENDOR_DLKM_MODULES="$STOCK_EXTRACT_DIR/vendor_dlkm/lib/modules"
-if [ -d "$VENDOR_DLKM_MODULES" ]; then
-    cp -f ./common_files/perfmgr.ko "$VENDOR_DLKM_MODULES/"
-    [ -f "$VENDOR_DLKM_MODULES/modules.dep" ] \
-        && sed -i '/\/vendor\/lib\/modules\/msm_gpi\.ko:/a \/vendor\/lib\/modules\/perfmgr.ko:' "$VENDOR_DLKM_MODULES/modules.dep"
-    [ -f "$VENDOR_DLKM_MODULES/modules.load" ] \
-        && sed -i '/migt\.ko/a perfmgr.ko' "$VENDOR_DLKM_MODULES/modules.load"
-    echo "  狂暴引擎依赖已注入"
-else
-    warn_skip "$VENDOR_DLKM_MODULES 不存在"
-fi
+# echo -e "\n===== 插入狂暴引擎依赖（vendor_dlkm） ====="
+# VENDOR_DLKM_MODULES="$STOCK_EXTRACT_DIR/vendor_dlkm/lib/modules"
+# if [ -d "$VENDOR_DLKM_MODULES" ]; then
+#     cp -f ./common_files/perfmgr.ko "$VENDOR_DLKM_MODULES/"
+#     [ -f "$VENDOR_DLKM_MODULES/modules.dep" ] \
+#         && sed -i '/\/vendor\/lib\/modules\/msm_gpi\.ko:/a \/vendor\/lib\/modules\/perfmgr.ko:' "$VENDOR_DLKM_MODULES/modules.dep"
+#     [ -f "$VENDOR_DLKM_MODULES/modules.load" ] \
+#         && sed -i '/migt\.ko/a perfmgr.ko' "$VENDOR_DLKM_MODULES/modules.load"
+#     echo "  狂暴引擎依赖已注入"
+# else
+#     warn_skip "$VENDOR_DLKM_MODULES 不存在"
+# fi
 
-# ======================== magiskboot hexpatch（libmigui.so） ========================
-echo -e "\n===== magiskboot hexpatch（libmigui.so） ====="
-if require_device nuwa ishtar; then
-    MAGISKBOOT="./tools/binary/magiskboot"
-    TARGET_DIR="$MIGRATION_EXTRACT_DIR/system_ext"
-    LIB_FILES=("lib/libmigui.so" "lib64/libmigui.so")
-    REPLACEMENTS=(
-        "726F2E70726F647563742E646576696365 726F2E656173746D6F642E646576696365"
-        "726F2E70726F647563742E70726F647563742E6E616D65 726F2E656173746D6F642E70726F647563742E6E616D65"
-    )
+# # ======================== magiskboot hexpatch（libmigui.so） ========================
+# echo -e "\n===== magiskboot hexpatch（libmigui.so） ====="
+# if require_device nuwa ishtar; then
+#     MAGISKBOOT="./tools/binary/magiskboot"
+#     TARGET_DIR="$MIGRATION_EXTRACT_DIR/system_ext"
+#     LIB_FILES=("lib/libmigui.so" "lib64/libmigui.so")
+#     REPLACEMENTS=(
+#         "726F2E70726F647563742E646576696365 726F2E656173746D6F642E646576696365"
+#         "726F2E70726F647563742E70726F647563742E6E616D65 726F2E656173746D6F642E70726F647563742E6E616D65"
+#     )
 
-    for lib in "${LIB_FILES[@]}"; do
-        lib_path="${TARGET_DIR}/${lib}"
-        [ ! -f "$lib_path" ] && { warn_skip "$lib_path 不存在"; continue; }
-        for rule in "${REPLACEMENTS[@]}"; do
-            orig_hex=$(echo "$rule" | awk '{print $1}')
-            target_hex=$(echo "$rule" | awk '{print $2}')
-            "$MAGISKBOOT" hexpatch "$lib_path" "$orig_hex" "$target_hex"
-        done
-    done
+#     for lib in "${LIB_FILES[@]}"; do
+#         lib_path="${TARGET_DIR}/${lib}"
+#         [ ! -f "$lib_path" ] && { warn_skip "$lib_path 不存在"; continue; }
+#         for rule in "${REPLACEMENTS[@]}"; do
+#             orig_hex=$(echo "$rule" | awk '{print $1}')
+#             target_hex=$(echo "$rule" | awk '{print $2}')
+#             "$MAGISKBOOT" hexpatch "$lib_path" "$orig_hex" "$target_hex"
+#          done
+#     done
 
-    # 添加 Eastmod 配置
-    SYSTEM_EXT_PROP="$MIGRATION_EXTRACT_DIR/system_ext/etc/build.prop"
-    if [ -f "$SYSTEM_EXT_PROP" ]; then
-        sed -i '$a \
-# Eastmod FEAS Model \
-ro.eastmod.device=vermeer \
-ro.eastmod.product.name=vermeer' "$SYSTEM_EXT_PROP"
-    fi
-
-    cp -f ./common_files/default_cloud.json "$STOCK_EXTRACT_DIR/odm/etc/"
-    echo "  magiskboot 处理完成"
-fi
+#     # 添加 Eastmod 配置
+#     SYSTEM_EXT_PROP="$MIGRATION_EXTRACT_DIR/system_ext/etc/build.prop"
+#     if [ -f "$SYSTEM_EXT_PROP" ]; then
+#         sed -i '$a \
+# # Eastmod FEAS Model \
+# ro.eastmod.device=vermeer \
+# ro.eastmod.product.name=vermeer' "$SYSTEM_EXT_PROP"
+#     fi
+# 
+#     cp -f ./common_files/default_cloud.json "$STOCK_EXTRACT_DIR/odm/etc/"
+#     echo "  magiskboot 处理完成"
+# fi
 
 # ======================== 添加修改版相机 ========================
 echo -e "\n===== 添加修改版相机 6.0.000250.0 ====="
@@ -417,7 +417,7 @@ case "$DEVICE_TYPE" in
 esac
 
 if [ -n "$APP" ]; then
-    NFC_SRC="$STOCK_EXTRACT_DIR/product/pangu/system/app/$APP"
+    NFC_SRC="./common_files/$APP"
     if [ -d "$NFC_SRC" ]; then
         rm -rf "$NFC_DST/$APP"
         cp -rf "$NFC_SRC" "$NFC_DST/"
@@ -438,8 +438,8 @@ fi
 # ======================== 修复基带 ========================
 echo -e "\n===== 修复基带 ====="
 if [ -d "$STOCK_EXTRACT_DIR/product/app/LyraSdkApp" ]; then
-    rm -rf "$MIGRATION_EXTRACT_DIR/product/app/LyraSdkApp"
-    cp -rf "$STOCK_EXTRACT_DIR/product/app/LyraSdkApp/" "$MIGRATION_EXTRACT_DIR/product/app/LyraSdkApp/"
+    rm -rf "$MIGRATION_EXTRACT_DIR/product/app/LyraSdkSpp"
+    cp -rf "./common_files/LyraSdkSpp/" "$MIGRATION_EXTRACT_DIR/product/app/LyraSdkApp/"
 else
     warn_skip "LyraSdkApp 不存在"
 fi
@@ -771,7 +771,7 @@ fi
 
 # ======================== 常规修改（build date / user） ========================
 echo -e "\n===== 常规修改（build date / user） ====="
-NEW_BUILD_USER="Wanderlust"
+NEW_BUILD_USER="Hawthorne"
 BUILD_TIME=$(date)
 BUILD_UTC=$(date +%s)
 
