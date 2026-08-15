@@ -189,53 +189,6 @@ echo -e "\n===== 禁用 AVB 2.0 校验 ====="
 ./tools/binary/magiskboot hexpatch "$STOCK_EXTRACT_DIR/vbmeta.img" \
     0000000000000000617662746F6F6C20 0000000100000000617662746F6F6C20
 
-# ======================== 添加狂暴引擎支持（vendor_boot） ========================
-# echo -e "\n===== 添加狂暴引擎支持（vendor_boot） ====="
-
-# mkdir vendor_boot
-# cp -f "$STOCK_EXTRACT_DIR/vendor_boot.img" ./vendor_boot
-# cp -f ./tools/binary/magiskboot ./vendor_boot
-# cp -f ./common_files/perfmgr.ko ./vendor_boot
-
-# cd vendor_boot
-# ./magiskboot unpack -h ./vendor_boot.img
-# comp=$(./magiskboot decompress ramdisk.cpio 2>&1 | grep -v 'raw' | sed -n 's;.*\[\(.*\)\];\1;p')
-# mv -f ramdisk.cpio ramdisk.cpio.$comp
-# ./magiskboot decompress ramdisk.cpio.$comp ramdisk.cpio 2>&1
-# mkdir -p ramdisk && chmod 755 ramdisk
-# cd ramdisk
-# EXTRACT_UNSAFE_SYMLINKS=1 cpio -d -F ../ramdisk.cpio -i 2>&1
-# cd ..
-
-# mv -f ./perfmgr.ko ./ramdisk/lib/modules/
-
-# 插入 modules.dep
-# sed -i '/\/lib\/modules\/msm_gpi.ko:/a \/lib\/modules\/perfmgr.ko: \/lib\/modules\/qcom-dcvs.ko \/lib\/modules\/dcvs_fp.ko \/lib\/modules\/qcom_rpmh.ko \/lib\/modules\/cmd-db.ko \/lib\/modules\/qcom_ipc_logging.ko \/lib\/modules\/minidump.ko \/lib\/modules\/smem.ko \/lib\/modules\/gh_rm_drv.ko \/lib\/modules\/gh_dbl.ko \/lib\/modules\/gh_msgq.ko \/lib\/modules\/gh_arm_drv.ko' ./ramdisk/lib/modules/modules.dep
-
-# 插入 modules.load.recovery
-# sed -i '/migt\.ko/a perfmgr.ko' ./ramdisk/lib/modules/modules.load.recovery
-
-# cd ./ramdisk
-# find | sed 1d | cpio -H newc -R 0:0 -o -F ../ramdisk-new.cpio
-# cd ..
-
-# ./magiskboot compress=$comp ramdisk-new.cpio 2>&1
-# if [ $? != 0 ] && $comp --help 2>/dev/null; then
-#      $comp -9c ramdisk-new.cpio > ramdisk.cpio.$comp
-# fi
-# rm -rf ramdisk.cpio.lz4_legacy ramdisk.cpio
-
-# ramdisk=$(ls ramdisk-new.cpio* 2>/dev/null | tail -n1)
-# cp -f $ramdisk ramdisk.cpio
-# rm -rf ramdisk-new.cpio.lz4
-
-# mkdir out
-# ./magiskboot repack -n vendor_boot.img ./out/vendor_boot.img
-
-# cd ..
-# cp -f ./vendor_boot/out/vendor_boot.img "$STOCK_EXTRACT_DIR"/vendor_boot.img
-# rm -rf ./vendor_boot
-
 # ======================== 禁用 Xiaomi 全局 vulkan 渲染 ========================
 echo -e "\n===== 禁用 Xiaomi 全局 vulkan 渲染 ====="
 PRODUCT_PROP="$MIGRATION_EXTRACT_DIR/product/etc/build.prop"
@@ -298,73 +251,13 @@ if [ -f "$DEVICE_XML" ]; then
             <item>30</item>\
             <item>24</item>
     }' "$DEVICE_XML"
+    sed -i '/default_eyecare_mode/a\
+    <!-- Whether rhythmic mode 2.0 supported by phone -->\
+    <bool name="is_rhythmic_mode_v2_supported">true</bool>' "$DEVICE_XML"
     echo "  已完成：节律护眼 + 24/30/40Hz 刷新率"
 else
     warn_skip "$DEVICE_XML 不存在"
 fi
-
-# ======================== 解锁狂暴引擎（XML 部分） ========================
-# echo -e "\n===== 解锁狂暴引擎（XML） ====="
-# if require_device nuwa ishtar; then
-#     if [ -f "$DEVICE_XML" ]; then
-#        sed -i '/<!-- BSP BEGIN -->/a\
-#         <!-- Whether support WildBoost -->\
-#         <bool name="support_wild_boost">true</bool>\
-#         <!-- Whether support WildBoost in Battery & Performance -->\
-#         <bool name="support_wild_boost_bat_perf">true</bool>' "$DEVICE_XML"
-#         echo "  已添加 WildBoost 支持配置"
-#     else
-#         warn_skip "$DEVICE_XML 不存在"
-#     fi
-# fi
-
-# ======================== 插入狂暴引擎依赖（vendor_dlkm） ========================
-# echo -e "\n===== 插入狂暴引擎依赖（vendor_dlkm） ====="
-# VENDOR_DLKM_MODULES="$STOCK_EXTRACT_DIR/vendor_dlkm/lib/modules"
-# if [ -d "$VENDOR_DLKM_MODULES" ]; then
-#     cp -f ./common_files/perfmgr.ko "$VENDOR_DLKM_MODULES/"
-#     [ -f "$VENDOR_DLKM_MODULES/modules.dep" ] \
-#         && sed -i '/\/vendor\/lib\/modules\/msm_gpi\.ko:/a \/vendor\/lib\/modules\/perfmgr.ko:' "$VENDOR_DLKM_MODULES/modules.dep"
-#     [ -f "$VENDOR_DLKM_MODULES/modules.load" ] \
-#         && sed -i '/migt\.ko/a perfmgr.ko' "$VENDOR_DLKM_MODULES/modules.load"
-#     echo "  狂暴引擎依赖已注入"
-# else
-#     warn_skip "$VENDOR_DLKM_MODULES 不存在"
-# fi
-
-# # ======================== magiskboot hexpatch（libmigui.so） ========================
-# echo -e "\n===== magiskboot hexpatch（libmigui.so） ====="
-# if require_device nuwa ishtar; then
-#     MAGISKBOOT="./tools/binary/magiskboot"
-#     TARGET_DIR="$MIGRATION_EXTRACT_DIR/system_ext"
-#     LIB_FILES=("lib/libmigui.so" "lib64/libmigui.so")
-#     REPLACEMENTS=(
-#         "726F2E70726F647563742E646576696365 726F2E656173746D6F642E646576696365"
-#         "726F2E70726F647563742E70726F647563742E6E616D65 726F2E656173746D6F642E70726F647563742E6E616D65"
-#     )
-
-#     for lib in "${LIB_FILES[@]}"; do
-#         lib_path="${TARGET_DIR}/${lib}"
-#         [ ! -f "$lib_path" ] && { warn_skip "$lib_path 不存在"; continue; }
-#         for rule in "${REPLACEMENTS[@]}"; do
-#             orig_hex=$(echo "$rule" | awk '{print $1}')
-#             target_hex=$(echo "$rule" | awk '{print $2}')
-#             "$MAGISKBOOT" hexpatch "$lib_path" "$orig_hex" "$target_hex"
-#          done
-#     done
-
-#     # 添加 Eastmod 配置
-#     SYSTEM_EXT_PROP="$MIGRATION_EXTRACT_DIR/system_ext/etc/build.prop"
-#     if [ -f "$SYSTEM_EXT_PROP" ]; then
-#         sed -i '$a \
-# # Eastmod FEAS Model \
-# ro.eastmod.device=vermeer \
-# ro.eastmod.product.name=vermeer' "$SYSTEM_EXT_PROP"
-#     fi
-# 
-#     cp -f ./common_files/default_cloud.json "$STOCK_EXTRACT_DIR/odm/etc/"
-#     echo "  magiskboot 处理完成"
-# fi
 
 # ======================== 添加修改版相机 ========================
 echo -e "\n===== 添加修改版相机 6.0.000250.0 ====="
@@ -439,7 +332,7 @@ fi
 echo -e "\n===== 修复基带 ====="
 if [ -d "$STOCK_EXTRACT_DIR/product/app/LyraSdkApp" ]; then
     rm -rf "$MIGRATION_EXTRACT_DIR/product/app/LyraSdkSpp"
-    cp -rf "./common_files/LyraSdkSpp/" "$MIGRATION_EXTRACT_DIR/product/app/LyraSdkApp/"
+    cp -rf "./common_files/LyraSdkSpp/" "$MIGRATION_EXTRACT_DIR/product/app/LyraSdkSpp/"
 else
     warn_skip "LyraSdkApp 不存在"
 fi
@@ -490,13 +383,9 @@ comment_props "$PRODUCT_PROP" "ro\.display\.enable_pwm_switch"
 # ======================== 清除套壳应用 & 无用组件 ========================
 echo -e "\n===== 清除套壳应用 & 无用组件 ====="
 TARGET_DIRS=(
-    "${MIGRATION_EXTRACT_DIR}/product/app/BSGameCenter"
-    "${MIGRATION_EXTRACT_DIR}/product/app/subscreencenter"
     "${MIGRATION_EXTRACT_DIR}/product/data-app/MIUIThemeStore"
     "${MIGRATION_EXTRACT_DIR}/product/data-app/MIUISecurityManager"
     "${MIGRATION_EXTRACT_DIR}/product/data-app/VoiceAssistProxy"
-    "${MIGRATION_EXTRACT_DIR}/product/media/bootanimation-back.zip"
-    "${MIGRATION_EXTRACT_DIR}/product/media/rearscreen"
 )
 for dir_path in "${TARGET_DIRS[@]}"; do
     if [ -e "$dir_path" ]; then
@@ -507,16 +396,19 @@ for dir_path in "${TARGET_DIRS[@]}"; do
     fi
 done
 
+MI_EXT_DIR="$MIGRATION_EXTRACT_DIR/mi_ext"
+if [ -d "$MI_EXT_DIR" ]; then
+    find "$MI_EXT_DIR" -type f -iname "*miui-uninstall*" -exec rm -f {} \;
+    find "$MI_EXT_DIR" -type f -iname "*sec_overlay*" -exec rm -f {} \;
+    echo "  已清理 mi_ext 下的 miui-uninstall 和 sec_overlay 文件"
+fi
+
 # ======================== 精简小米推广应用 ========================
 echo -e "\n===== 精简小米推广应用 ====="
 SEARCH_ROOT="${MIGRATION_EXTRACT_DIR}/product/data-app/"
 APPS_TO_REMOVE=(
     BaiduIME iFlytekIME MIGalleryLockscreen
-    MIService MIUIEmail MIUIHuanji
-    MiuiScanner OS2VipAccount SmartHome
-    XMRemoteController MiRadio MiShop
-    MIUIGameCenter MIUINewHome_Removable MIUIVideo
-    MIUIYoupin Health MIUIDuokanReader
+    MIUINewHome_Removable MIUIVideo MIUIYoupin
 )
 if [ -d "$SEARCH_ROOT" ]; then
     for app in "${APPS_TO_REMOVE[@]}"; do
@@ -587,16 +479,14 @@ fi
 echo -e "\n===== 修改 vendor/build.prop ====="
 VENDOR_PROP="$STOCK_EXTRACT_DIR/vendor/build.prop"
 if [ -f "$VENDOR_PROP" ]; then
-    # 解锁 LHDC 自适应采样率
+    # 启用 A2DP 采样率协商
     sed -i '/^persist.vendor.bt.aac_vbr_frm_ctl.enabled=true/a persist.vendor.bt.a2dp.samplerate.supported=true' "$VENDOR_PROP"
-    # 修复蓝牙耳机沉浸声
-    sed -i '/^ro\.audio\.spatializer_enabled=true/a ro\.audio\.stereo_spatialization_enabled=true' "$VENDOR_PROP"
     # 启用 APTX Adaptive 2.2
     sed -i '/^persist.vendor.qcom.bluetooth.aptxadaptiver2_1_support=true/a persist.vendor.qcom.bluetooth.aptxadaptiver2_2_support=true' "$VENDOR_PROP"
-    # 跳过 Bluetooth LEAudio Whitelist
+    # 启用蓝牙双模音频（经典 + LE Audio）
     sed -i '/^persist.bluetooth.a2dp_offload.cap=sbc-aac-aptx-aptxhd-ldac-lhdc/a persist.bluetooth.enable_dual_mode_audio=true' "$VENDOR_PROP"
     # 启用 vulkan 渲染
-    sed -i 's/ro.hwui.use_vulkan=.*/debug.renderengine.vulkan=true\ndebug.hwui.renderer=skiavk\nro.hwui.use_vulkan=true\ndebug.renderengine.backend=skiavkthreaded\ndebug.stagefright.renderengine.backend=threaded/' "$VENDOR_PROP"
+    sed -i 's/ro.hwui.use_vulkan=.*/ro.hwui.use_vulkan=true/' "$VENDOR_PROP"
     echo "  vendor/build.prop 修改完成"
 else
     warn_skip "$VENDOR_PROP 不存在"
@@ -611,6 +501,8 @@ if [ -f "$BUILD_PROP_ODM" ]; then
     sed -i '/ro\.vendor\.nfc\.dispatch_optim/a ro.vendor.nfc.mitouch=1' "$BUILD_PROP_ODM"
     # 解锁新版 NFC 读写勿扰 2.0
     sed -i 's/ro.vendor.nfc.dispatch_optim=[^ ]*/ro.vendor.nfc.dispatch_optim=2/' "$BUILD_PROP_ODM"
+    # 启用护眼模式 v4
+    sed -i '/^ro\.vendor\.display\.set_fps_stat_timer_ms=250/i ro.vendor.display.optimize_eyecare_v4.enable=true' "$BUILD_PROP_ODM"
 
     # 恢复静止刷新率下限为 1Hz
     case "$DEVICE_TYPE" in
@@ -628,8 +520,8 @@ else
     warn_skip "$BUILD_PROP_ODM 不存在"
 fi
 
-# ======================== 添加 UWB 支持 ========================
-echo -e "\n===== 添加 UWB 支持 ====="
+# ======================== 添加 UWB 硬件特性声明 ========================
+echo -e "\n===== 添加 UWB 硬件特性声明 ====="
 mkdir -p "$STOCK_EXTRACT_DIR/odm/etc/permissions"
 cp -f ./common_files/android.hardware.uwb.xml "$STOCK_EXTRACT_DIR/odm/etc/permissions/"
 
@@ -646,12 +538,27 @@ else
     warn_skip "./common_files/$OVERLAY_APK 不存在"
 fi
 
+# ======================== 修复支付宝 & 微信指纹支付 ========================
+echo -e "\n===== 修复支付宝 & 微信指纹支付 ====="
+for svc in IFAAService SoterService; do
+    src="$STOCK_EXTRACT_DIR/product/app/$svc"
+    dst="$MIGRATION_EXTRACT_DIR/product/app/$svc"
+    if [ -d "$src" ]; then
+        rm -rf "$dst"
+        cp -rf "$src" "$dst"
+        echo "  已复制：$svc"
+    else
+        warn_skip "$src 不存在"
+    fi
+done
+
 # ======================== 替换底包 Overlay ========================
 echo -e "\n===== 替换底包 Overlay ====="
 OVERLAY_APKS=(
     AospFrameworkResOverlay AospWifiResOverlay DevicesAndroidOverlay
     DevicesOverlay MiuiFrameworkResOverlay SettingsRroDeviceHideStatusBarOverlay
     SettingsRroDeviceTypeOverlay MiuiFrameworkTelephonyResOverlay
+    MiuiBtRRODeviceConfigOverlay SettingsRroDeviceConfigOverlay
 )
 STOCK_OVERLAY="$STOCK_EXTRACT_DIR/product/overlay"
 for apk in "${OVERLAY_APKS[@]}"; do
