@@ -151,7 +151,7 @@ process_migration_package() {
 
     # 解压 payload.bin 指定 image
     echo -e "\n 从 Migration ZIP 提取 payload 指定 image..."
-    ./tools/binary/payload_extract -i "$MIGRATION_ZIP" -t zip -o "$MIGRATION_EXTRACT_DIR" -X product,system,system_ext,mi_ext -T0 \
+    ./tools/binary/payload_extract -i "$MIGRATION_ZIP" -t zip -o "$MIGRATION_EXTRACT_DIR" -X product,system,system_ext,mi_ext,init_boot -T0 \
         || error_exit "payload_extract 失败（Migration 包）"
 
     # 提取镜像文件
@@ -337,6 +337,19 @@ else
     warn_skip "LyraSdkApp 不存在"
 fi
 
+# ======================== 修复 AI 模型 ========================
+echo -e "\n===== 修复 AI 模型 ====="
+STOCK_AI_DIR="$STOCK_EXTRACT_DIR/mi_ext/product/ai"
+MIGRATION_AI_DIR="$MIGRATION_EXTRACT_DIR/mi_ext/product/ai"
+if [ -d "$STOCK_AI_DIR" ]; then
+    mkdir -p "$MIGRATION_AI_DIR"
+    rm -rf "$MIGRATION_AI_DIR"/*
+    cp -rf "$STOCK_AI_DIR/." "$MIGRATION_AI_DIR/"
+    echo "  AI 模型已替换为底包版本"
+else
+    warn_skip "$STOCK_AI_DIR 不存在"
+fi
+
 # ======================== 去除国区谷歌商店限制 ========================
 echo -e "\n===== 去除国区谷歌商店限制 ====="
 XML="$MIGRATION_EXTRACT_DIR/product/etc/permissions/cn.google.services.xml"
@@ -409,6 +422,7 @@ SEARCH_ROOT="${MIGRATION_EXTRACT_DIR}/product/data-app/"
 APPS_TO_REMOVE=(
     BaiduIME iFlytekIME MIGalleryLockscreen
     MIUINewHome_Removable MIUIVideo MIUIYoupin
+    MIUIDuokanReader TinyGame
 )
 if [ -d "$SEARCH_ROOT" ]; then
     for app in "${APPS_TO_REMOVE[@]}"; do
@@ -524,6 +538,48 @@ fi
 echo -e "\n===== 添加 UWB 硬件特性声明 ====="
 mkdir -p "$STOCK_EXTRACT_DIR/odm/etc/permissions"
 cp -f ./common_files/android.hardware.uwb.xml "$STOCK_EXTRACT_DIR/odm/etc/permissions/"
+
+# ======================== 修复震动 ========================
+echo -e "\n===== 修复震动 ====="
+VIBRATOR_SRC="./common_files/FixVibrator"
+# .rc 内服务路径固定为 /odm/bin/hw，因此 alias 装进 odm 分区
+VIBRATOR_MANIFEST="$STOCK_EXTRACT_DIR/odm/etc/vintf/manifest/vendor.xiaomi.hardware.vibratorfeature.service.xml"
+ODM_FS_CONFIG="$STOCK_EXTRACT_DIR/config/odm_fs_config"
+ODM_FILE_CONTEXTS="$STOCK_EXTRACT_DIR/config/odm_file_contexts"
+
+if [ -f "$VIBRATOR_SRC/vendor.vibrator-default-alias" ] && [ -f "$VIBRATOR_SRC/vendor.vibrator-default-alias.rc" ]; then
+    # 允许 hal_vibrator_default 对自身域发起 binder 调用（odm 策略是 vendor sepolicy 的扩展，规则写 vendor cil）
+    VENDOR_SEPOLICY_CIL="$STOCK_EXTRACT_DIR/vendor/etc/selinux/vendor_sepolicy.cil"
+    if [ -f "$VENDOR_SEPOLICY_CIL" ]; then
+        echo "(allow hal_vibrator_default hal_vibrator_default (binder (call transfer)))" >> "$VENDOR_SEPOLICY_CIL"
+    else
+        warn_skip "$VENDOR_SEPOLICY_CIL 不存在"
+    fi
+    # 策略已更新，删除 vendor/odm 预编译 sepolicy
+    find "$STOCK_EXTRACT_DIR/vendor" "$STOCK_EXTRACT_DIR/odm" -type f -name "*precompiled_sepolicy*" -delete
+    # 复制 alias 服务文件（用 cp 保留 common_files 原件，便于重复打包）
+    mkdir -p "$STOCK_EXTRACT_DIR/odm/bin/hw" "$STOCK_EXTRACT_DIR/odm/etc/init"
+    cp -f "$VIBRATOR_SRC/vendor.vibrator-default-alias" "$STOCK_EXTRACT_DIR/odm/bin/hw/"
+    cp -f "$VIBRATOR_SRC/vendor.vibrator-default-alias.rc" "$STOCK_EXTRACT_DIR/odm/etc/init/"
+    # 在 vibratorfeature 服务的 VINTF 清单中追加 default 实例
+    if [ -f "$VIBRATOR_MANIFEST" ]; then
+        sed -Ei '/<fqname>[[:space:]]*IVibrator\/vibratorfeature[[:space:]]*<\/fqname>/a\        <fqname>IVibrator/default</fqname>' "$VIBRATOR_MANIFEST"
+    else
+        warn_skip "$VIBRATOR_MANIFEST 不存在"
+    fi
+    # 注册 fs_config 权限与 SELinux 上下文
+    if [ -f "$ODM_FS_CONFIG" ] && [ -f "$ODM_FILE_CONTEXTS" ]; then
+        echo "odm/bin/hw/vendor.vibrator-default-alias 0 2000 0755" >> "$ODM_FS_CONFIG"
+        echo "/odm/bin/hw/vendor\.vibrator-default-alias u:object_r:hal_vibrator_default_exec:s0" >> "$ODM_FILE_CONTEXTS"
+        echo "odm/etc/init/vendor.vibrator-default-alias.rc 0 0 0644" >> "$ODM_FS_CONFIG"
+        echo "/odm/etc/init/vendor\.vibrator-default-alias\.rc u:object_r:vendor_configs_file:s0" >> "$ODM_FILE_CONTEXTS"
+    else
+        warn_skip "config 下缺少 odm_fs_config / odm_file_contexts"
+    fi
+    echo "  震动修复完成"
+else
+    warn_skip "$VIBRATOR_SRC 下缺少 alias 文件"
+fi
 
 # ======================== 解锁控制中心透明效果 ========================
 echo -e "\n===== 解锁控制中心透明效果 ====="
@@ -764,6 +820,190 @@ for file in "${!TASKS[@]}"; do
 done
 echo "  配置更新完成"
 
+# ======================== 清理底包 mi_ext ========================
+echo -e "\n===== 清理底包 mi_ext ====="
+rm -rf "$STOCK_EXTRACT_DIR/mi_ext"
+echo "  已清理底包 mi_ext（AI 模型与版本号均已取用）"
+
+# ======================== snapshot 修复 ========================
+echo -e "\n===== snapshot 修复 ====="
+MAGISKBOOT="./tools/binary/magiskboot"
+
+if ! command -v cpio &>/dev/null; then
+    warn_skip "未安装 cpio，跳过 snapshot 修复"
+elif [ ! -f "$MAGISKBOOT" ]; then
+    warn_skip "$MAGISKBOOT 不存在，跳过 snapshot 修复"
+elif [ ! -f "$STOCK_EXTRACT_DIR/init_boot.img" ]; then
+    warn_skip "底包 init_boot.img 不存在，跳过 snapshot 修复"
+elif [ ! -f "$MIGRATION_EXTRACT_DIR/init_boot.img" ]; then
+    warn_skip "移植包 init_boot.img 不存在，跳过 snapshot 修复"
+else
+    BUILD_ROOT="$PWD"
+    rm -rf ./init_boot_bottom ./init_boot_target
+    mkdir -p ./init_boot_bottom ./init_boot_target
+    cp -f "$STOCK_EXTRACT_DIR/init_boot.img" ./init_boot_bottom/
+    cp -f "$MAGISKBOOT" ./init_boot_bottom/
+    cp -f "$MIGRATION_EXTRACT_DIR/init_boot.img" ./init_boot_target/
+    cp -f "$MAGISKBOOT" ./init_boot_target/
+
+    # 解包底包 init_boot ramdisk
+    cd ./init_boot_bottom
+    ./magiskboot unpack -h ./init_boot.img
+    comp=$(./magiskboot decompress ./ramdisk.cpio 2>&1 | grep -v 'raw' | sed -n 's;.*\[\(.*\)\];\1;p')
+    if [ "$comp" ]; then
+        mv -f ./ramdisk.cpio ./ramdisk.cpio.$comp
+        ./magiskboot decompress ./ramdisk.cpio.$comp ./ramdisk.cpio
+        if [ $? != 0 ] && $comp --help 2>/dev/null; then
+            $comp -dc ./ramdisk.cpio.$comp > ./ramdisk.cpio
+        fi
+    fi
+    mkdir -p ramdisk
+    chmod 755 ramdisk
+    cd ramdisk
+    EXTRACT_UNSAFE_SYMLINKS=1 cpio -d -F ../ramdisk.cpio -i
+    bottom_comp="$comp"
+
+    # 解包移植包 init_boot ramdisk
+    cd "$BUILD_ROOT/init_boot_target"
+    ./magiskboot unpack -h ./init_boot.img
+    target_comp=$(./magiskboot decompress ./ramdisk.cpio 2>&1 | grep -v 'raw' | sed -n 's;.*\[\(.*\)\];\1;p')
+    if [ "$target_comp" ]; then
+        mv -f ./ramdisk.cpio ./ramdisk.cpio.$target_comp
+        ./magiskboot decompress ./ramdisk.cpio.$target_comp ./ramdisk.cpio
+        if [ $? != 0 ] && $target_comp --help 2>/dev/null; then
+            $target_comp -dc ./ramdisk.cpio.$target_comp > ./ramdisk.cpio
+        fi
+    fi
+    mkdir -p ramdisk
+    chmod 755 ramdisk
+    cd ramdisk
+    EXTRACT_UNSAFE_SYMLINKS=1 cpio -d -F ../ramdisk.cpio -i
+
+    # 用移植包的 system/bin 覆盖底包 init_boot ramdisk 中的对应目录
+    if [ ! -d "$BUILD_ROOT/init_boot_bottom/ramdisk/system" ] || [ ! -d "$BUILD_ROOT/init_boot_target/ramdisk/system/bin" ]; then
+        warn_skip "init_boot ramdisk 解包异常，保留原底包 init_boot"
+    else
+        cp -af "$BUILD_ROOT/init_boot_target/ramdisk/system/bin" "$BUILD_ROOT/init_boot_bottom/ramdisk/system"
+
+        # 重新打包底包 init_boot（回写提取目录，随 firmware 目录进最终包）
+        cd "$BUILD_ROOT/init_boot_bottom/ramdisk"
+        find | sed 1d | cpio -H newc -R 0:0 -o -F ../ramdisk_new.cpio
+        cd "$BUILD_ROOT/init_boot_bottom"
+        if [ "$bottom_comp" ]; then
+            ./magiskboot compress=$bottom_comp ./ramdisk_new.cpio
+            if [ $? != 0 ] && $bottom_comp --help 2>/dev/null; then
+                $bottom_comp -9c ./ramdisk_new.cpio > ./ramdisk.cpio.$bottom_comp
+            fi
+        fi
+        new_ramdisk=$(ls ./ramdisk_new.cpio* 2>/dev/null | tail -n1)
+        if [ "$new_ramdisk" ]; then
+            cp -f "$new_ramdisk" ./ramdisk.cpio
+            nocompflag=
+            case $bottom_comp in
+                cpio) nocompflag="-n" ;;
+            esac
+            ./magiskboot repack $nocompflag ./init_boot.img "$BUILD_ROOT/$STOCK_EXTRACT_DIR/init_boot.img"
+            echo "  snapshot 修复完成"
+        else
+            warn_skip "ramdisk 重新打包失败，保留原底包 init_boot"
+        fi
+    fi
+
+    # 清理临时目录与移植包 init_boot
+    cd "$BUILD_ROOT"
+    rm -rf ./init_boot_bottom ./init_boot_target "$MIGRATION_EXTRACT_DIR/init_boot.img"
+fi
+
+# ======================== mi_product 挂载修复 ========================
+echo -e "\n===== mi_product 挂载修复 ====="
+MAGISKBOOT="./tools/binary/magiskboot"
+STOCK_FSTAB="$STOCK_EXTRACT_DIR/vendor/etc/fstab.qcom"
+BUILD_ROOT="$PWD"
+
+# 从移植包提取 mi_product 分区镜像（HyperOS 4 新增分区，后面原样并入 super.img）
+if ./tools/binary/payload_extract -i "$MIGRATION_ZIP" -t zip -o "$MIGRATION_EXTRACT_DIR" -X mi_product -T0 -s; then
+    echo "  已提取 mi_product.img"
+else
+    warn_skip "移植包无 mi_product 分区"
+fi
+
+if ! command -v cpio &>/dev/null; then
+    warn_skip "未安装 cpio，跳过 mi_product 挂载修复"
+elif [ ! -f "$MAGISKBOOT" ]; then
+    warn_skip "$MAGISKBOOT 不存在，跳过 mi_product 挂载修复"
+elif [ ! -f "$STOCK_FSTAB" ]; then
+    warn_skip "底包 fstab.qcom 不存在，跳过 mi_product 挂载修复"
+elif [ ! -f "$STOCK_EXTRACT_DIR/vendor_boot.img" ]; then
+    warn_skip "底包 vendor_boot.img 不存在，跳过 mi_product 挂载修复"
+else
+    # 修补 fstab.qcom：克隆 mi_ext 条目为 mi_product，插入到 mi_ext 行之后
+    cp -f "$STOCK_FSTAB" ./fstab.qcom
+    origin_line=$(grep -n "^/mnt/vendor/mi_ext.*/mi_ext.*erofs" ./fstab.qcom | tail -1 | cut -d: -f1)
+    grep -E "^(mi_ext |/mnt/vendor/mi_ext +/mi_ext )" ./fstab.qcom | sed 's/mi_ext/mi_product/g' > ./mi_product_block.txt
+
+    if [ -z "$origin_line" ]; then
+        warn_skip "fstab.qcom 中未找到 mi_ext erofs 挂载行，跳过 mi_product 挂载修复"
+    else
+        sed -i "${origin_line}r ./mi_product_block.txt" ./fstab.qcom
+        rm -f ./mi_product_block.txt
+
+        # 修补底包 vendor_boot
+        rm -rf ./vendor_boot
+        mkdir -p ./vendor_boot
+        cp -f "$STOCK_EXTRACT_DIR/vendor_boot.img" ./vendor_boot/vendor_boot.img
+        cp -f "$MAGISKBOOT" ./vendor_boot/
+
+        cd ./vendor_boot
+        ./magiskboot unpack -h ./vendor_boot.img
+        comp=$(./magiskboot decompress ./vendor_ramdisk/ramdisk.cpio 2>&1 | grep -v 'raw' | sed -n 's;.*\[\(.*\)\];\1;p')
+        if [ "$comp" ]; then
+            mv -f ./vendor_ramdisk/ramdisk.cpio ./vendor_ramdisk/ramdisk.cpio.$comp
+            ./magiskboot decompress ./vendor_ramdisk/ramdisk.cpio.$comp ./vendor_ramdisk/ramdisk.cpio
+            if [ $? != 0 ] && $comp --help 2>/dev/null; then
+                $comp -dc ./vendor_ramdisk/ramdisk.cpio.$comp > ./vendor_ramdisk/ramdisk.cpio
+            fi
+        fi
+        mkdir -p ramdisk
+        chmod 755 ramdisk
+        cd ramdisk
+        EXTRACT_UNSAFE_SYMLINKS=1 cpio -d -F ../vendor_ramdisk/ramdisk.cpio -i
+
+        # 写入修补后的 fstab 到 first_stage_ramdisk
+        if [ ! -d "$BUILD_ROOT/vendor_boot/ramdisk/first_stage_ramdisk" ]; then
+            warn_skip "vendor_boot ramdisk 无 first_stage_ramdisk，保留原底包 vendor_boot"
+        else
+            cp -af "$BUILD_ROOT/fstab.qcom" "$BUILD_ROOT/vendor_boot/ramdisk/first_stage_ramdisk/fstab.qcom"
+
+            cd "$BUILD_ROOT/vendor_boot/ramdisk"
+            find | sed 1d | cpio -H newc -R 0:0 -o -F ../vendor_ramdisk/ramdisk_new.cpio
+            cd "$BUILD_ROOT/vendor_boot"
+            if [ "$comp" ]; then
+                ./magiskboot compress=$comp ./vendor_ramdisk/ramdisk_new.cpio
+                if [ $? != 0 ] && $comp --help 2>/dev/null; then
+                    $comp -9c ./vendor_ramdisk/ramdisk_new.cpio > ./vendor_ramdisk/ramdisk.cpio.$comp
+                fi
+            fi
+            new_ramdisk=$(ls ./vendor_ramdisk/ramdisk_new.cpio* 2>/dev/null | tail -n1)
+            if [ "$new_ramdisk" ]; then
+                cp -f "$new_ramdisk" ./vendor_ramdisk/ramdisk.cpio
+                nocompflag=
+                case $comp in
+                    cpio) nocompflag="-n" ;;
+                esac
+                ./magiskboot repack $nocompflag ./vendor_boot.img "$BUILD_ROOT/$STOCK_EXTRACT_DIR/vendor_boot.img"
+                echo "  mi_product 挂载修复完成"
+            else
+                warn_skip "vendor_ramdisk 重新打包失败，保留原底包 vendor_boot"
+            fi
+        fi
+    fi
+
+    # 清理临时文件与工作目录
+    rm -f ./fstab.qcom ./mi_product_block.txt
+    cd "$BUILD_ROOT"
+    rm -rf ./vendor_boot
+fi
+
 # ======================== 解压刷机脚本 & Recovery ========================
 echo -e "\n===== 解压刷机脚本 & Recovery ====="
 RECOVERY_SRC="./tools/recovery"
@@ -893,6 +1133,17 @@ vendor_size=$(get_size "$STOCK_EXTRACT_DIR/vendor.img")
 vendor_dlkm_size=$(get_size "$STOCK_EXTRACT_DIR/vendor_dlkm.img")
 system_dlkm_size=$(get_size "$STOCK_EXTRACT_DIR/system_dlkm.img")
 
+# mi_product 分区（HyperOS 4 移植包才有；fstab 条目指向 /dev/block/mapper/mi_product_a，须在 super 中存在）
+MI_PRODUCT_LPMAKE_ARGS=()
+if [ -f "$MIGRATION_EXTRACT_DIR/mi_product.img" ]; then
+    mi_product_size=$(get_size "$MIGRATION_EXTRACT_DIR/mi_product.img")
+    MI_PRODUCT_LPMAKE_ARGS=(
+        --partition mi_product_a:readonly:"$mi_product_size":qti_dynamic_partitions_a
+        --image mi_product_a="$MIGRATION_EXTRACT_DIR/mi_product.img"
+        --partition mi_product_b:readonly:0:qti_dynamic_partitions_b
+    )
+fi
+
 ./tools/binary/lpmake --device super:9663676416 --virtual-ab \
     --metadata-size 65536 --super-name super --block-size 4096 --metadata-slots 3 \
     --partition odm_a:readonly:"$odm_size":qti_dynamic_partitions_a --image odm_a="$STOCK_EXTRACT_DIR/odm.img" \
@@ -911,6 +1162,7 @@ system_dlkm_size=$(get_size "$STOCK_EXTRACT_DIR/system_dlkm.img")
     --partition system_dlkm_b:readonly:0:qti_dynamic_partitions_b \
     --partition system_ext_b:readonly:0:qti_dynamic_partitions_b \
     --partition odm_b:readonly:0:qti_dynamic_partitions_b \
+    "${MI_PRODUCT_LPMAKE_ARGS[@]}" \
     --group qti_dynamic_partitions_a:9663676416 --group qti_dynamic_partitions_b:9663676416 \
     -F --output ./output/super.img
 
