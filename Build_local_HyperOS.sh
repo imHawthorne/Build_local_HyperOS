@@ -170,6 +170,9 @@ process_migration_package() {
 echo -e "===== 镜像提取工具 ====="
 check_file_exists "./tools/binary/payload_extract"
 check_file_exists "./tools/binary/extract.erofs"
+check_file_exists "./tools/binary/magiskboot"
+MAGISKBOOT="./tools/binary/magiskboot"
+BUILD_ROOT="$PWD"
 
 process_stock_package
 process_migration_package
@@ -181,8 +184,6 @@ echo "  Migration 包内容：$MIGRATION_EXTRACT_DIR"
 check_env
 detect_device
 echo -e "\n 设备型号：$DEVICE_TYPE"
-
-DEVICE_XML=$(device_xml)
 
 # ======================== 禁用 AVB 2.0 校验 ========================
 echo -e "\n===== 禁用 AVB 2.0 校验 ====="
@@ -202,11 +203,17 @@ cp -rf "$STOCK_EXTRACT_DIR/product/etc/device_features/" "$MIGRATION_EXTRACT_DIR
 DEVICE_XML=$(device_xml)
 
 # ======================== 修改 device_features XML 的通用函数 ========================
-# 参数：$1=匹配模式  $2=插入内容
+# 参数：$1=sed 表达式
 patch_device_xml() {
     [ ! -f "$DEVICE_XML" ] && warn_skip "device_features XML 不存在" && return 0
+    cp -f "$DEVICE_XML" "$DEVICE_XML.bak"
     sed -i "$1" "$DEVICE_XML"
-    echo "  已修改 device_features"
+    if diff -q "$DEVICE_XML" "$DEVICE_XML.bak" >/dev/null 2>&1; then
+        echo "  未匹配（特性可能未生效）：$1"
+    else
+        echo "  已修改 device_features"
+    fi
+    rm -f "$DEVICE_XML.bak"
 }
 
 # ======================== 屏蔽系统更新检测 ========================
@@ -259,17 +266,13 @@ else
     warn_skip "$DEVICE_XML 不存在"
 fi
 
-# ======================== 添加修改版相机 ========================
-echo -e "\n===== 添加修改版相机 6.0.000250.0 ====="
-rm -rf "$MIGRATION_EXTRACT_DIR/product/priv-app/MiuiCamera/"
-7z x ./common_files/MiuiCamera.7z -o"$MIGRATION_EXTRACT_DIR/product/priv-app/MiuiCamera"
-
 # ======================== 从 Stock 复制应用（批量） ========================
 echo -e "\n===== 从 Stock 复制应用到 Migration ====="
 STOCK_APPS=(
     "product/app/MiuiCit:product/app/MiuiCit"
     "product/app/AiasstVision:product/app/AiasstVision"
     "product/app/MiAONService:product/app/MiAONServiceW"
+    "product/priv-app/MiuiCamera:product/priv-app/MiuiCamera"
 )
 for pair in "${STOCK_APPS[@]}"; do
     src="${pair%%:*}"
@@ -399,6 +402,7 @@ TARGET_DIRS=(
     "${MIGRATION_EXTRACT_DIR}/product/data-app/MIUIThemeStore"
     "${MIGRATION_EXTRACT_DIR}/product/data-app/MIUISecurityManager"
     "${MIGRATION_EXTRACT_DIR}/product/data-app/VoiceAssistProxy"
+    "${MIGRATION_EXTRACT_DIR}/product/priv-app/MIUIBrowser"
 )
 for dir_path in "${TARGET_DIRS[@]}"; do
     if [ -e "$dir_path" ]; then
@@ -436,14 +440,6 @@ else
     warn_skip "$SEARCH_ROOT 不存在"
 fi
 
-# ======================== 将内置浏览器改为可卸载 ========================
-echo -e "\n===== 将内置浏览器改为可卸载应用 ====="
-if [ -d "$MIGRATION_EXTRACT_DIR/product/priv-app/MIUIBrowser" ]; then
-    mv "$MIGRATION_EXTRACT_DIR/product/priv-app/MIUIBrowser" "$MIGRATION_EXTRACT_DIR/product/data-app/MIUIBrowser"
-else
-    warn_skip "MIUIBrowser 不存在"
-fi
-
 # ======================== 添加 apex vndk33 支持 ========================
 echo -e "\n===== 添加 apex vndk33 支持 ====="
 APEX_DIR="$MIGRATION_EXTRACT_DIR/system_ext/apex"
@@ -469,6 +465,7 @@ comment_props "$PRODUCT_PROP" \
 # ======================== 禁用 tango 转译器 ========================
 echo -e "\n===== 禁用 tango 转译器 ====="
 SYSTEM_PROP="$MIGRATION_EXTRACT_DIR/system/system/build.prop"
+SYSTEM_EXT_PROP="$MIGRATION_EXTRACT_DIR/system_ext/etc/build.prop"
 comment_props "$SYSTEM_PROP" \
     "tango\.enabled" \
     "tango\.debug" \
@@ -477,17 +474,6 @@ comment_props "$SYSTEM_PROP" \
     "tango\.pretrans\.debug" \
     "tango\.pretrans\.lib" \
     "tango\.pretrans\.apk"
-
-# ======================== 解锁 MiuiCamera HLG ========================
-echo -e "\n===== 解锁 MiuiCamera HLG 支持 ====="
-SYSTEM_EXT_PROP="$MIGRATION_EXTRACT_DIR/system_ext/etc/build.prop"
-if [ -f "$SYSTEM_EXT_PROP" ]; then
-    sed -i '$a \
-# Enable MiuiCamera HLG Support \
-persist.camera.settings.hlg=true' "$SYSTEM_EXT_PROP"
-else
-    warn_skip "$SYSTEM_EXT_PROP 不存在"
-fi
 
 # ======================== vendor/build.prop 修改（批量追加） ========================
 echo -e "\n===== 修改 vendor/build.prop ====="
@@ -679,7 +665,7 @@ ZRAM_CONF="$MIGRATION_EXTRACT_DIR/system_ext/etc/perfinit_bdsize_zram.conf"
 if [ -f "$ZRAM_CONF" ] && command -v jq &>/dev/null; then
     mkdir -p ./tmp
     cp -f "$ZRAM_CONF" ./tmp/
-    jq '.zram += [{"product_name": ["umi","cmi","cas","apollo","thyme","alioth","munch","venus","mars","star","odin","fuxi","nuwa","ishtar"], "zram_size": {"6": 6144, "8": 8192, "12": 12288, "16": 16384, "24": 24567}}]' ./tmp/perfinit_bdsize_zram.conf > ./tmp/perfinit_bdsize_zram_out.conf
+    jq '.zram += [{"product_name": ["umi","cmi","cas","apollo","thyme","alioth","munch","venus","mars","star","odin","fuxi","nuwa","ishtar"], "zram_size": {"6": 6144, "8": 8192, "12": 12288, "16": 16384, "24": 24576}}]' ./tmp/perfinit_bdsize_zram.conf > ./tmp/perfinit_bdsize_zram_out.conf
     cp -f ./tmp/perfinit_bdsize_zram_out.conf "$ZRAM_CONF"
     rm -rf ./tmp
     echo "  ZRAM 配置完成"
@@ -827,18 +813,14 @@ echo "  已清理底包 mi_ext（AI 模型与版本号均已取用）"
 
 # ======================== snapshot 修复 ========================
 echo -e "\n===== snapshot 修复 ====="
-MAGISKBOOT="./tools/binary/magiskboot"
 
 if ! command -v cpio &>/dev/null; then
     warn_skip "未安装 cpio，跳过 snapshot 修复"
-elif [ ! -f "$MAGISKBOOT" ]; then
-    warn_skip "$MAGISKBOOT 不存在，跳过 snapshot 修复"
 elif [ ! -f "$STOCK_EXTRACT_DIR/init_boot.img" ]; then
     warn_skip "底包 init_boot.img 不存在，跳过 snapshot 修复"
 elif [ ! -f "$MIGRATION_EXTRACT_DIR/init_boot.img" ]; then
     warn_skip "移植包 init_boot.img 不存在，跳过 snapshot 修复"
 else
-    BUILD_ROOT="$PWD"
     rm -rf ./init_boot_bottom ./init_boot_target
     mkdir -p ./init_boot_bottom ./init_boot_target
     cp -f "$STOCK_EXTRACT_DIR/init_boot.img" ./init_boot_bottom/
@@ -916,9 +898,7 @@ fi
 
 # ======================== mi_product 挂载修复 ========================
 echo -e "\n===== mi_product 挂载修复 ====="
-MAGISKBOOT="./tools/binary/magiskboot"
 STOCK_FSTAB="$STOCK_EXTRACT_DIR/vendor/etc/fstab.qcom"
-BUILD_ROOT="$PWD"
 
 # 从移植包提取 mi_product 分区镜像（HyperOS 4 新增分区，后面原样并入 super.img）
 if ./tools/binary/payload_extract -i "$MIGRATION_ZIP" -t zip -o "$MIGRATION_EXTRACT_DIR" -X mi_product -T0 -s; then
@@ -929,8 +909,6 @@ fi
 
 if ! command -v cpio &>/dev/null; then
     warn_skip "未安装 cpio，跳过 mi_product 挂载修复"
-elif [ ! -f "$MAGISKBOOT" ]; then
-    warn_skip "$MAGISKBOOT 不存在，跳过 mi_product 挂载修复"
 elif [ ! -f "$STOCK_FSTAB" ]; then
     warn_skip "底包 fstab.qcom 不存在，跳过 mi_product 挂载修复"
 elif [ ! -f "$STOCK_EXTRACT_DIR/vendor_boot.img" ]; then
@@ -955,18 +933,24 @@ else
 
         cd ./vendor_boot
         ./magiskboot unpack -h ./vendor_boot.img
-        comp=$(./magiskboot decompress ./vendor_ramdisk/ramdisk.cpio 2>&1 | grep -v 'raw' | sed -n 's;.*\[\(.*\)\];\1;p')
+        # 兼容不同 magiskboot 构建：新版布局输出 vendor_ramdisk/ramdisk.cpio，旧版直接输出 ramdisk.cpio
+        if [ -f ./vendor_ramdisk/ramdisk.cpio ]; then
+            RAMDISK_DIR="./vendor_ramdisk"
+        else
+            RAMDISK_DIR="."
+        fi
+        comp=$(./magiskboot decompress "$RAMDISK_DIR/ramdisk.cpio" 2>&1 | grep -v 'raw' | sed -n 's;.*\[\(.*\)\];\1;p')
         if [ "$comp" ]; then
-            mv -f ./vendor_ramdisk/ramdisk.cpio ./vendor_ramdisk/ramdisk.cpio.$comp
-            ./magiskboot decompress ./vendor_ramdisk/ramdisk.cpio.$comp ./vendor_ramdisk/ramdisk.cpio
+            mv -f "$RAMDISK_DIR/ramdisk.cpio" "$RAMDISK_DIR/ramdisk.cpio.$comp"
+            ./magiskboot decompress "$RAMDISK_DIR/ramdisk.cpio.$comp" "$RAMDISK_DIR/ramdisk.cpio"
             if [ $? != 0 ] && $comp --help 2>/dev/null; then
-                $comp -dc ./vendor_ramdisk/ramdisk.cpio.$comp > ./vendor_ramdisk/ramdisk.cpio
+                $comp -dc "$RAMDISK_DIR/ramdisk.cpio.$comp" > "$RAMDISK_DIR/ramdisk.cpio"
             fi
         fi
         mkdir -p ramdisk
         chmod 755 ramdisk
         cd ramdisk
-        EXTRACT_UNSAFE_SYMLINKS=1 cpio -d -F ../vendor_ramdisk/ramdisk.cpio -i
+        EXTRACT_UNSAFE_SYMLINKS=1 cpio -d -F "../$RAMDISK_DIR/ramdisk.cpio" -i
 
         # 写入修补后的 fstab 到 first_stage_ramdisk
         if [ ! -d "$BUILD_ROOT/vendor_boot/ramdisk/first_stage_ramdisk" ]; then
@@ -975,17 +959,17 @@ else
             cp -af "$BUILD_ROOT/fstab.qcom" "$BUILD_ROOT/vendor_boot/ramdisk/first_stage_ramdisk/fstab.qcom"
 
             cd "$BUILD_ROOT/vendor_boot/ramdisk"
-            find | sed 1d | cpio -H newc -R 0:0 -o -F ../vendor_ramdisk/ramdisk_new.cpio
+            find | sed 1d | cpio -H newc -R 0:0 -o -F "../$RAMDISK_DIR/ramdisk_new.cpio"
             cd "$BUILD_ROOT/vendor_boot"
             if [ "$comp" ]; then
-                ./magiskboot compress=$comp ./vendor_ramdisk/ramdisk_new.cpio
+                ./magiskboot compress=$comp "$RAMDISK_DIR/ramdisk_new.cpio"
                 if [ $? != 0 ] && $comp --help 2>/dev/null; then
-                    $comp -9c ./vendor_ramdisk/ramdisk_new.cpio > ./vendor_ramdisk/ramdisk.cpio.$comp
+                    $comp -9c "$RAMDISK_DIR/ramdisk_new.cpio" > "$RAMDISK_DIR/ramdisk.cpio.$comp"
                 fi
             fi
-            new_ramdisk=$(ls ./vendor_ramdisk/ramdisk_new.cpio* 2>/dev/null | tail -n1)
+            new_ramdisk=$(ls "$RAMDISK_DIR"/ramdisk_new.cpio* 2>/dev/null | tail -n1)
             if [ "$new_ramdisk" ]; then
-                cp -f "$new_ramdisk" ./vendor_ramdisk/ramdisk.cpio
+                cp -f "$new_ramdisk" "$RAMDISK_DIR/ramdisk.cpio"
                 nocompflag=
                 case $comp in
                     cpio) nocompflag="-n" ;;
@@ -1173,7 +1157,14 @@ echo -e "\n===== 压缩 super.img ====="
 # ======================== 打包 ZIP ========================
 echo -e "\n===== 打包 ZIP ====="
 OUTPUT_DIR="./output"
-ZIP_BASE_NAME="$STOCK_EXTRACT_DIR-ota_full-$NEW_VERSION-user-16.0"
+# 从移植包文件名提取版本后缀（如 madrid-ota_full-OS4.0.20.0.XEOCNXM-user-17.0-xxx.zip → user-17.0）
+if [[ "$MIGRATION_FILENAME" =~ -user-([0-9]+\.[0-9]+)(-|\.|$) ]]; then
+    VERSION_SUFFIX="user-${BASH_REMATCH[1]}"
+else
+    VERSION_SUFFIX="user-17.0"
+    warn_skip "移植包文件名未找到 user-xx.0，使用默认后缀 $VERSION_SUFFIX"
+fi
+ZIP_BASE_NAME="$STOCK_EXTRACT_DIR-ota_full-$NEW_VERSION-$VERSION_SUFFIX"
 ZIP_DIR="./zip"
 
 [ ! -d "$OUTPUT_DIR" ] || [ -z "$(ls -A "$OUTPUT_DIR" 2>/dev/null)" ] && error_exit "$OUTPUT_DIR 不存在或为空"
