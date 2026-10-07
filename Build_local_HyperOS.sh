@@ -115,7 +115,7 @@ process_stock_package() {
 
     # 解压 payload.bin
     echo -e "\n 提取 Stock 包 payload..."
-    ./tools/binary/payload_extract -i "$STOCK_ZIP" -t zip -o "$STOCK_EXTRACT_DIR" -x \
+    ./tools/binary/payload_extract -i "$STOCK_ZIP" -o "$STOCK_EXTRACT_DIR" -x \
         || error_exit "payload_extract 失败（Stock 包）"
 
     # 提取各类镜像
@@ -151,7 +151,7 @@ process_migration_package() {
 
     # 解压 payload.bin 指定 image
     echo -e "\n 从 Migration ZIP 提取 payload 指定 image..."
-    ./tools/binary/payload_extract -i "$MIGRATION_ZIP" -t zip -o "$MIGRATION_EXTRACT_DIR" -X product,system,system_ext,mi_ext,init_boot -T0 \
+    ./tools/binary/payload_extract -i "$MIGRATION_ZIP" -o "$MIGRATION_EXTRACT_DIR" -X product,system,system_ext,mi_ext,init_boot -T0 \
         || error_exit "payload_extract 失败（Migration 包）"
 
     # 提取镜像文件
@@ -901,7 +901,7 @@ echo -e "\n===== mi_product 挂载修复 ====="
 STOCK_FSTAB="$STOCK_EXTRACT_DIR/vendor/etc/fstab.qcom"
 
 # 从移植包提取 mi_product 分区镜像（HyperOS 4 新增分区，后面原样并入 super.img）
-if ./tools/binary/payload_extract -i "$MIGRATION_ZIP" -t zip -o "$MIGRATION_EXTRACT_DIR" -X mi_product -T0 -s; then
+if ./tools/binary/payload_extract -i "$MIGRATION_ZIP" -o "$MIGRATION_EXTRACT_DIR" -X mi_product -T0 -s; then
     echo "  已提取 mi_product.img"
 else
     warn_skip "移植包无 mi_product 分区"
